@@ -8,8 +8,6 @@
 #   GPU: 1x RTX 4090 (24 GB VRAM)
 #   RAM: 32 GB
 #   Disk: 50 GB
-#   CUDA: 11.7 or 11.8
-#   Docker: pytorch/pytorch:1.13.0-cuda11.6-cudnn8-devel
 #
 # Usage:
 #   chmod +x setup_vastai.sh
@@ -18,7 +16,6 @@
 
 set -e  # Exit on any error
 
-REPO_URL="https://github.com/qimingfan10/SAM-VMNet.git"
 WORK_DIR="/workspace/SAM-VMNet"
 WEIGHTS_DIR="${WORK_DIR}/pre_trained_weights"
 
@@ -39,16 +36,18 @@ apt-get update -qq && apt-get install -y -qq git wget unzip > /dev/null 2>&1
 echo "  Done."
 
 # --------------------------------------------------
-# Step 2: Clone repository
+# Step 2: Fix Git LFS checkout if needed
 # --------------------------------------------------
-echo "[2/7] Cloning SAM-VMNet repository..."
-if [ -d "$WORK_DIR" ]; then
-    echo "  Repository already exists at ${WORK_DIR}, pulling latest..."
-    cd "$WORK_DIR" && git pull
-else
-    git clone "$REPO_URL" "$WORK_DIR"
-    cd "$WORK_DIR"
-fi
+echo "[2/7] Fixing repository checkout..."
+cd "$WORK_DIR"
+
+# LFS-tracked files from the original repo fail because the LFS objects
+# aren't on our fork. Remove the LFS filter and just skip those files
+# (we download the weights via gdown anyway).
+git lfs uninstall 2>/dev/null || true
+git config --local filter.lfs.smudge "git-lfs smudge --skip -- %f" 2>/dev/null || true
+git config --local filter.lfs.process "git-lfs filter-process --skip" 2>/dev/null || true
+git checkout -- . 2>/dev/null || true
 echo "  Done."
 
 # --------------------------------------------------
@@ -57,19 +56,23 @@ echo "  Done."
 echo "[3/7] Installing Python dependencies..."
 cd "$WORK_DIR"
 
-# Install main requirements (skip CUDA-compiled packages for now)
+# Detect installed PyTorch version
+TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])" 2>/dev/null || echo "none")
+echo "  Detected PyTorch: ${TORCH_VERSION}"
+
+if [ "$TORCH_VERSION" = "none" ]; then
+    echo "  No PyTorch found, installing latest..."
+    pip install --quiet torch torchvision torchaudio
+    TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
+    echo "  Installed PyTorch: ${TORCH_VERSION}"
+fi
+
+# Install main requirements (skip CUDA-compiled packages, installed separately)
 pip install --quiet \
     monai matplotlib scikit-image "SimpleITK>=2.2.1" nibabel tqdm scipy \
     opencv-python tensorboardX scikit-learn thop h5py medpy \
     packaging "timm==0.4.12" chardet yacs termcolor submitit \
     gdown
-
-# torch 1.13.0 should already be in the Docker image, but verify
-python -c "import torch; assert torch.__version__.startswith('1.13'), f'Need torch 1.13.x, got {torch.__version__}'" 2>/dev/null || {
-    echo "  Installing PyTorch 1.13.0..."
-    pip install --quiet torch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0 \
-        --extra-index-url https://download.pytorch.org/whl/cu117
-}
 echo "  Done."
 
 # --------------------------------------------------
@@ -77,23 +80,32 @@ echo "  Done."
 # --------------------------------------------------
 echo "[4/7] Installing CUDA-dependent packages (causal_conv1d, mamba_ssm)..."
 
-# triton
-pip install --quiet "triton==2.0.0" 2>/dev/null || {
-    echo "  Warning: triton 2.0.0 install failed, trying latest..."
-    pip install --quiet triton
-}
+# Determine compatible versions based on PyTorch version
+TORCH_MAJOR=$(echo "$TORCH_VERSION" | cut -d. -f1)
 
-# causal_conv1d
-pip install --quiet "causal_conv1d==1.0.0" 2>/dev/null || {
-    echo "  Building causal_conv1d from source..."
-    pip install --quiet "causal_conv1d==1.0.0" --no-build-isolation
-}
+if [ "$TORCH_MAJOR" -ge 2 ]; then
+    echo "  PyTorch 2.x detected — installing compatible mamba_ssm and causal_conv1d..."
 
-# mamba_ssm
-pip install --quiet "mamba_ssm==1.0.1" 2>/dev/null || {
-    echo "  Building mamba_ssm from source..."
-    pip install --quiet "mamba_ssm==1.0.1" --no-build-isolation
-}
+    # triton (latest works with PyTorch 2.x)
+    pip install --quiet triton 2>/dev/null || echo "  Warning: triton install failed (non-critical)"
+
+    # causal_conv1d >= 1.1.0 supports PyTorch 2.x
+    pip install --quiet causal_conv1d 2>/dev/null || {
+        echo "  Building causal_conv1d from source..."
+        pip install --quiet causal_conv1d --no-build-isolation 2>/dev/null || echo "  Warning: causal_conv1d install failed"
+    }
+
+    # mamba_ssm >= 2.0 supports PyTorch 2.x
+    pip install --quiet mamba_ssm 2>/dev/null || {
+        echo "  Building mamba_ssm from source..."
+        pip install --quiet mamba_ssm --no-build-isolation 2>/dev/null || echo "  Warning: mamba_ssm install failed"
+    }
+else
+    echo "  PyTorch 1.x detected — installing pinned versions..."
+    pip install --quiet "triton==2.0.0" 2>/dev/null || pip install --quiet triton
+    pip install --quiet "causal_conv1d==1.0.0" 2>/dev/null || pip install --quiet "causal_conv1d==1.0.0" --no-build-isolation
+    pip install --quiet "mamba_ssm==1.0.1" 2>/dev/null || pip install --quiet "mamba_ssm==1.0.1" --no-build-isolation
+fi
 echo "  Done."
 
 # --------------------------------------------------
@@ -101,6 +113,17 @@ echo "  Done."
 # --------------------------------------------------
 echo "[5/7] Downloading pre-trained weights..."
 mkdir -p "$WEIGHTS_DIR"
+
+# Remove any LFS stub files (they're tiny text files, not real weights)
+for f in "${WEIGHTS_DIR}/vmamba_tiny_e292.pth" "${WEIGHTS_DIR}/medsam_vit_b.pth"; do
+    if [ -f "$f" ]; then
+        SIZE=$(stat -c%s "$f" 2>/dev/null || stat -f%z "$f" 2>/dev/null || echo "0")
+        if [ "$SIZE" -lt 10000 ]; then
+            echo "  Removing LFS stub: $f ($SIZE bytes)"
+            rm -f "$f"
+        fi
+    fi
+done
 
 # VMamba backbone
 if [ ! -f "${WEIGHTS_DIR}/vmamba_tiny_e292.pth" ]; then
@@ -124,7 +147,6 @@ echo "  Done."
 # --------------------------------------------------
 echo "[6/7] Verifying installation..."
 
-# Check CUDA
 echo -n "  CUDA available: "
 python -c "import torch; print(torch.cuda.is_available())"
 
@@ -140,12 +162,22 @@ python -c "import mamba_ssm; print('OK')" 2>/dev/null || echo "FAILED"
 echo -n "  causal_conv1d: "
 python -c "import causal_conv1d; print('OK')" 2>/dev/null || echo "FAILED"
 
-# Check weights exist
+# Check weights exist and are real (not LFS stubs)
 echo -n "  VMamba weights: "
-[ -f "${WEIGHTS_DIR}/vmamba_tiny_e292.pth" ] && echo "OK" || echo "MISSING"
+if [ -f "${WEIGHTS_DIR}/vmamba_tiny_e292.pth" ]; then
+    SIZE=$(stat -c%s "${WEIGHTS_DIR}/vmamba_tiny_e292.pth" 2>/dev/null || stat -f%z "${WEIGHTS_DIR}/vmamba_tiny_e292.pth")
+    echo "OK (${SIZE} bytes)"
+else
+    echo "MISSING"
+fi
 
 echo -n "  MedSAM weights: "
-[ -f "${WEIGHTS_DIR}/medsam_vit_b.pth" ] && echo "OK" || echo "MISSING"
+if [ -f "${WEIGHTS_DIR}/medsam_vit_b.pth" ]; then
+    SIZE=$(stat -c%s "${WEIGHTS_DIR}/medsam_vit_b.pth" 2>/dev/null || stat -f%z "${WEIGHTS_DIR}/medsam_vit_b.pth")
+    echo "OK (${SIZE} bytes)"
+else
+    echo "MISSING"
+fi
 
 # --------------------------------------------------
 # Step 7: Quick sanity check
