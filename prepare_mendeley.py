@@ -246,17 +246,19 @@ def extract_patient_id(filename):
     """
     Extract a patient ID from the filename for patient-level splitting.
 
-    Heuristic: Use the first numeric segment or prefix before a separator.
-    Examples:
-        "patient001_view1.png" -> "patient001"
-        "P01_angio_001.jpg" -> "P01"
-        "12345_frame01.png" -> "12345"
-        "img_001.png" -> "img_001"  (fallback: whole stem)
+    Mendeley angiography filenames: "14_024_2_0042.bmp"
+        prefix=14, patient=024, sequence=2, frame=0042
+        -> patient ID = "14_024"
+
+    Generic fallback: first segment before separator.
     """
     stem = Path(filename).stem
-
-    # Try common patterns: prefix_suffix, where prefix is patient ID
     parts = stem.replace('-', '_').split('_')
+
+    # Mendeley format: prefix_patientID_sequence_frame (4+ segments)
+    if len(parts) >= 4:
+        return f"{parts[0]}_{parts[1]}"
+
     if len(parts) >= 2:
         return parts[0]
 
