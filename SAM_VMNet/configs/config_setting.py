@@ -33,7 +33,7 @@ class setting_config:
     world_size = None
     rank = None
     amp = False
-    gpu_id = '7'
+    gpu_id = '0'
     batch_size = 1
     epochs = 300
 
