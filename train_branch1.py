@@ -106,6 +106,7 @@ def main(config, args):
     min_loss = 999
     start_epoch = 1
     min_epoch = 1
+    loss = 999
 
     if os.path.exists(resume_model):
         print('#----------Resume Model and Other params----------#')
@@ -138,20 +139,21 @@ def main(config, args):
             device
         )
 
-        loss = val_one_epoch(
-            val_loader,
-            model,
-            criterion,
-            epoch,
-            logger,
-            config,
-            device
-        )
+        if epoch % 10 == 0 or epoch == config.epochs:
+            loss = val_one_epoch(
+                val_loader,
+                model,
+                criterion,
+                epoch,
+                logger,
+                config,
+                device
+            )
 
-        if loss < min_loss:
-            torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best.pth'))
-            min_loss = loss
-            min_epoch = epoch
+            if loss < min_loss:
+                torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best.pth'))
+                min_loss = loss
+                min_epoch = epoch
 
         torch.save(
             {
