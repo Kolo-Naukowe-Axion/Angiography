@@ -45,7 +45,7 @@ def train_one_epoch(train_loader,
         loss = criterion(out.float().clamp(1e-7, 1 - 1e-7), targets)
 
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
         optimizer.step()
 
         loss_list.append(loss.item())
