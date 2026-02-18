@@ -90,7 +90,7 @@ def val_one_epoch(test_loader,
             msk = msk.to(device, non_blocking=True).float()
             feature = feature.to(device, non_blocking=True).float()
             out = model(img, feature)
-            loss = criterion(out, msk)
+            loss = criterion(out.clamp(1e-7, 1 - 1e-7), msk)
 
             loss_list.append(loss.item())
             gts.append(msk.squeeze(1).cpu().detach().numpy())
@@ -149,7 +149,7 @@ def test_one_epoch(test_loader,
             msk = msk.to(device, non_blocking=True).float()
             feature = feature.to(device, non_blocking=True).float()
             out = model(img, feature)
-            loss = criterion(out, msk)
+            loss = criterion(out.clamp(1e-7, 1 - 1e-7), msk)
 
             loss_list.append(loss.item())
             msk = msk.squeeze(1).cpu().detach().numpy()

@@ -83,14 +83,14 @@ def val_one_epoch(test_loader,
             msk = msk.to(device, non_blocking=True).float()
 
             out = model(img)
-            loss = criterion(out, msk)
+            loss = criterion(out.clamp(1e-7, 1 - 1e-7), msk)
 
             loss_list.append(loss.item())
             gts.append(msk.squeeze(1).cpu().detach().numpy())
             if type(out) is tuple:
                 out = out[0]
             out = out.squeeze(1).cpu().detach().numpy()
-            preds.append(out) 
+            preds.append(out)
 
     if epoch % config.val_interval == 0:
         preds = np.array(preds).reshape(-1)
@@ -141,7 +141,7 @@ def test_one_epoch(test_loader,
             msk = msk.to(device, non_blocking=True).float()
 
             out = model(img)
-            loss = criterion(out, msk)
+            loss = criterion(out.clamp(1e-7, 1 - 1e-7), msk)
 
             loss_list.append(loss.item())
             msk = msk.squeeze(1).cpu().detach().numpy()
