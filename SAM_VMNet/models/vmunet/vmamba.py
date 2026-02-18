@@ -21,6 +21,100 @@ try:
 except:
     pass
 
+# Pure-PyTorch fallback when neither mamba_ssm nor selective_scan is available
+if 'selective_scan_fn' not in dir():
+    def selective_scan_fn(u, delta, A, B, C, D=None, z=None,
+                          delta_bias=None, delta_softplus=False,
+                          return_last_state=False):
+        """
+        Pure-PyTorch implementation of the selective scan (S6) operation.
+        Matches the mamba_ssm.ops.selective_scan_interface.selective_scan_fn API.
+
+        u: (B, D, L)   - input
+        delta: (B, D, L) - timestep
+        A: (D, N)       - state matrix
+        B: (B, N, L) or (B, G, N, L) - input-dependent B
+        C: (B, N, L) or (B, G, N, L) - input-dependent C
+        D: (D,)         - skip connection
+        z: (B, D, L)    - gate (optional)
+        delta_bias: (D,) - bias added to delta before softplus
+        """
+        batch, dim, length = u.shape
+        n_state = A.shape[1]
+
+        if delta_bias is not None:
+            delta = delta + delta_bias.unsqueeze(0).unsqueeze(-1)
+        if delta_softplus:
+            delta = F.softplus(delta)
+
+        # Discretize: dA = exp(delta * A), dB = delta * B
+        # A is (D, N), delta is (B, D, L) -> deltaA is (B, D, L, N)
+        deltaA = torch.exp(
+            torch.einsum('b d l, d n -> b d l n', delta, A)
+        )
+
+        # B can be (B, G, N, L) with G groups or (B, N, L)
+        if B.dim() == 4:
+            # (B, G, N, L) -> groups; expand to match D
+            G = B.shape[1]
+            D_per_group = dim // G
+            deltaB_u = torch.einsum(
+                'b d l, b g n l -> b d l n',
+                delta * u,
+                B.repeat(1, 1, 1, 1),  # keep as-is
+            )
+            # Manual group einsum
+            deltaB_u = torch.zeros(batch, dim, length, n_state,
+                                   device=u.device, dtype=u.dtype)
+            for g in range(G):
+                d_start = g * D_per_group
+                d_end = (g + 1) * D_per_group
+                deltaB_u[:, d_start:d_end] = torch.einsum(
+                    'b d l, b n l -> b d l n',
+                    delta[:, d_start:d_end] * u[:, d_start:d_end],
+                    B[:, g],
+                )
+        else:
+            # B is (B, N, L)
+            deltaB_u = torch.einsum(
+                'b d l, b n l -> b d l n',
+                delta * u,
+                B,
+            )
+
+        # Scan
+        x = torch.zeros(batch, dim, n_state, device=u.device, dtype=u.dtype)
+        ys = []
+        for l in range(length):
+            x = deltaA[:, :, l] * x + deltaB_u[:, :, l]
+            if C.dim() == 4:
+                G = C.shape[1]
+                D_per_group = dim // G
+                y_l = torch.zeros(batch, dim, device=u.device, dtype=u.dtype)
+                for g in range(G):
+                    d_start = g * D_per_group
+                    d_end = (g + 1) * D_per_group
+                    y_l[:, d_start:d_end] = torch.einsum(
+                        'b d n, b n -> b d',
+                        x[:, d_start:d_end],
+                        C[:, g, :, l],
+                    )
+                ys.append(y_l)
+            else:
+                y_l = torch.einsum('b d n, b n -> b d', x, C[:, :, l])
+                ys.append(y_l)
+
+        y = torch.stack(ys, dim=-1)  # (B, D, L)
+
+        if D is not None:
+            y = y + u * D.unsqueeze(0).unsqueeze(-1)
+        if z is not None:
+            y = y * F.silu(z)
+
+        if return_last_state:
+            return y, x
+        return y
+
 DropPath.__repr__ = lambda self: f"timm.DropPath({self.drop_prob})"
 
 
