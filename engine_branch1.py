@@ -36,9 +36,10 @@ def train_one_epoch(train_loader,
 
         # AMP: forward pass in float16 for speed, loss in float32 for safety
         # (BCELoss is not autocast-safe due to sigmoid+log precision issues)
+        # Clamp to [eps, 1-eps] to avoid log(0) from float16 overflow in sigmoid
         with autocast(enabled=use_amp):
             out = model(images)
-        loss = criterion(out.float(), targets)
+        loss = criterion(out.float().clamp(1e-7, 1 - 1e-7), targets)
 
         if use_amp:
             scaler.scale(loss).backward()
