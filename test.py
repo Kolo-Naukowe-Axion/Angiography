@@ -63,12 +63,13 @@ def test_with_pretrained():
     setting_config.work_dir = output_dir
     os.makedirs(output_dir, exist_ok=True)
 
+    logger = get_logger('test', output_dir)
     criterion = setting_config.criterion
     loss = test_one_epoch(
         test_loader,
         model,
         criterion,
-        None,
+        logger,
         setting_config,
         device
     )
