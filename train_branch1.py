@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import DataLoader
-from torch.cuda.amp import GradScaler
 import timm
 from dataset import Branch1_datasets
 from tensorboardX import SummaryWriter
@@ -121,10 +120,6 @@ def main(config, args):
         log_info = f'resuming model from {resume_model}. resume_epoch: {saved_epoch}, min_loss: {min_loss:.4f}, min_epoch: {min_epoch}, loss: {loss:.4f}'
         logger.info(log_info)
 
-    # AMP GradScaler — scales gradients to prevent float16 underflow.
-    # When config.amp is False, the scaler is a no-op.
-    scaler = GradScaler(enabled=config.amp)
-
     step = 0
     print('#----------Training----------#')
     for epoch in range(start_epoch, config.epochs + 1):
@@ -140,8 +135,7 @@ def main(config, args):
             logger,
             config,
             writer,
-            device,
-            scaler=scaler
+            device
         )
 
         loss = val_one_epoch(

@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import torch
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast
 from sklearn.metrics import confusion_matrix
 from utils import save_imgs
 
@@ -16,8 +16,7 @@ def train_one_epoch(train_loader,
                     logger,
                     config,
                     writer,
-                    device,
-                    scaler=None):
+                    device):
     '''
     train model for one epoch
     '''
@@ -25,7 +24,6 @@ def train_one_epoch(train_loader,
     model.train()
 
     loss_list = []
-    use_amp = scaler is not None and scaler.is_enabled()
 
     for iter, data in enumerate(train_loader):
         step += iter
@@ -34,20 +32,15 @@ def train_one_epoch(train_loader,
         images = images.to(device, non_blocking=True).float()
         targets = targets.to(device, non_blocking=True).float()
 
-        # AMP: forward pass in float16 for speed, loss in float32 for safety
-        # (BCELoss is not autocast-safe due to sigmoid+log precision issues)
-        # Clamp to [eps, 1-eps] to avoid log(0) from float16 overflow in sigmoid
-        with autocast(enabled=use_amp):
+        # AMP with bfloat16: same exponent range as float32 (8 bits) so no
+        # overflow in Mamba's selective scan. No GradScaler needed with bf16.
+        with autocast('cuda', enabled=config.amp, dtype=torch.bfloat16):
             out = model(images)
         loss = criterion(out.float().clamp(1e-7, 1 - 1e-7), targets)
 
-        if use_amp:
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
-        else:
-            loss.backward()
-            optimizer.step()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
 
         loss_list.append(loss.item())
 
