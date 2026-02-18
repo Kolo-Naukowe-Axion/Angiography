@@ -5,9 +5,9 @@
 # Run this on a fresh vast.ai instance to set up everything.
 #
 # Recommended instance specs:
-#   GPU: 1x RTX 4090 (24 GB VRAM)
-#   RAM: 32 GB
-#   Disk: 50 GB
+#   GPU: 1x H100 SXM (80 GB VRAM) or 1x RTX 4090 (24 GB VRAM)
+#   RAM: 64 GB+
+#   Disk: 100 GB+
 #
 # Usage:
 #   chmod +x setup_vastai.sh
