@@ -29,12 +29,12 @@ DATA_PATH="./data/vessel/"
 MEDSAM_PATH="./pre_trained_weights/medsam_vit_b.pth"
 
 # Branch 1 settings
-B1_BATCH_SIZE=8
+B1_BATCH_SIZE=16
 B1_EPOCHS=200
 B1_WORK_DIR="./result_branch1/"
 
 # Branch 2 settings
-B2_BATCH_SIZE=4
+B2_BATCH_SIZE=8
 B2_EPOCHS=100
 B2_WORK_DIR="./result_branch2/"
 
