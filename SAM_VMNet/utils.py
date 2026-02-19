@@ -40,10 +40,9 @@ def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-    # for cudnn — benchmark=True auto-tunes convolution algorithms for fixed input sizes
-    # deterministic=False is required for benchmark to be effective
-    cudnn.benchmark = True
-    cudnn.deterministic = False
+    # for cudnn
+    cudnn.benchmark = False
+    cudnn.deterministic = True
 
 
 def get_logger(name, log_dir):

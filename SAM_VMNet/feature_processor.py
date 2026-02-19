@@ -23,7 +23,10 @@ def process_images(data_path, model_path):
     splits = ['train', 'val', 'test']
 
     for split in splits:
-        mask_subdir = 'masks'
+        if split == 'test':
+            mask_subdir = 'pred_masks'
+        else:
+            mask_subdir = 'masks'
 
         image_dir = os.path.join(data_path, split, 'images')
         mask_dir = os.path.join(data_path, split, mask_subdir)

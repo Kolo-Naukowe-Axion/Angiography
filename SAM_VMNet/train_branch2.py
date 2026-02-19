@@ -31,7 +31,6 @@ def parse_args():
     parser.add_argument('--data_path', type=str, default='./data', help='data path')
     parser.add_argument('--medsam_path', type=str, required=True, help='path to MedSAM model')
     parser.add_argument('--branch1_model_path', type=str, required=True, help='path to trained Branch1 model')
-    parser.add_argument('--num_workers', type=int, default=None, help='dataloader workers (default: from config)')
     return parser.parse_args()
 
 
@@ -42,8 +41,6 @@ def main(config, args):
     config.batch_size = args.batch_size
     config.gpu_id = args.gpu_id
     config.epochs = args.epochs
-    if args.num_workers is not None:
-        config.num_workers = args.num_workers
 
     medsam_model_path = args.medsam_path
     branch1_model_path = args.branch1_model_path
@@ -125,7 +122,7 @@ def main(config, args):
 
     if os.path.exists(resume_model):
         print('#----------Resume Model and Other params----------#')
-        checkpoint = torch.load(resume_model, map_location=torch.device('cpu'), weights_only=False)
+        checkpoint = torch.load(resume_model, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
@@ -141,6 +138,8 @@ def main(config, args):
     val_losses = []
     print('#----------Training----------#')
     for epoch in range(start_epoch, config.epochs + 1):
+
+        torch.cuda.empty_cache()
 
         step, train_loss = train_one_epoch(
             train_loader,
@@ -184,7 +183,7 @@ def main(config, args):
 
     if os.path.exists(os.path.join(checkpoint_dir, 'best.pth')):
         print('#----------Testing----------#')
-        best_weight = torch.load(os.path.join(checkpoint_dir, 'best.pth'), map_location=torch.device('cpu'), weights_only=False)
+        best_weight = torch.load(os.path.join(checkpoint_dir, 'best.pth'), map_location=torch.device('cpu'))
         model.load_state_dict(best_weight)
         loss = test_one_epoch(
             test_loader,

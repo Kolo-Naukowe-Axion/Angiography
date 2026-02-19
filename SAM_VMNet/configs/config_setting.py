@@ -28,13 +28,13 @@ class setting_config:
     input_channels = 3
     distributed = False
     local_rank = -1
-    num_workers = 16
+    num_workers = 0
     seed = 42
     world_size = None
     rank = None
-    amp = True
-    gpu_id = '0'
-    batch_size = 32
+    amp = False
+    gpu_id = '7'
+    batch_size = 1
     epochs = 300
 
     work_dir = 'results/' + network + '_'  + datetime.now().strftime('%A_%d_%B_%Y_%Hh_%Mm_%Ss') + '/'

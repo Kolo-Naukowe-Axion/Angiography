@@ -22,27 +22,22 @@ isort
 black
 mypy
 
-# PyTorch (no version pin -- let pip resolve for your Python + platform)
-torch
-torchvision
-torchaudio
+# Additional dependencies for vmunet
+torch==1.13.0
+torchvision==0.14.0
+torchaudio==0.13.0
 packaging
-timm
+timm==0.4.12
 pytest
 chardet
 yacs
 termcolor
 submitit
 tensorboardX
+triton==2.0.0
+causal_conv1d==1.0.0
+mamba_ssm==1.0.1
 scikit-learn
 thop
 h5py
 medpy
-einops
-Pillow
-gdown
-
-# CUDA-only (skip on macOS / CPU-only setups):
-#   triton
-#   causal_conv1d
-#   mamba_ssm

@@ -49,7 +49,7 @@ def test_with_pretrained():
     model.load_from()
     model = model.to(device)
 
-    checkpoint = torch.load(pretrained_weight, map_location="cpu", weights_only=False)
+    checkpoint = torch.load(pretrained_weight, map_location="cpu")
     filtered_state_dict = {}
     for key, value in checkpoint.items():
         if 'total_ops' not in key and 'total_params' not in key:
@@ -63,13 +63,12 @@ def test_with_pretrained():
     setting_config.work_dir = output_dir
     os.makedirs(output_dir, exist_ok=True)
 
-    logger = get_logger('test', output_dir)
     criterion = setting_config.criterion
     loss = test_one_epoch(
         test_loader,
         model,
         criterion,
-        logger,
+        None,
         setting_config,
         device
     )

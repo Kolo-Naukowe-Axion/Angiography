@@ -1,19 +1,19 @@
 import numpy as np
 from tqdm import tqdm
 import torch
-from torch.amp import autocast
+from torch.cuda.amp import autocast as autocast
 from sklearn.metrics import confusion_matrix
 from utils import save_imgs
 
 
 def train_one_epoch(train_loader,
                     model,
-                    criterion,
-                    optimizer,
+                    criterion, 
+                    optimizer, 
                     scheduler,
-                    epoch,
+                    epoch, 
                     step,
-                    logger,
+                    logger, 
                     config,
                     writer,
                     device):
@@ -21,8 +21,8 @@ def train_one_epoch(train_loader,
     train model for one epoch
     '''
     # switch to train mode
-    model.train()
-
+    model.train() 
+ 
     loss_list = []
 
     for iter, data in enumerate(train_loader):
@@ -32,16 +32,12 @@ def train_one_epoch(train_loader,
         images = images.to(device, non_blocking=True).float()
         targets = targets.to(device, non_blocking=True).float()
 
-        # AMP with bfloat16: same exponent range as float32 (8 bits) so no
-        # overflow in Mamba's selective scan. No GradScaler needed with bf16.
-        with autocast('cuda', enabled=config.amp, dtype=torch.bfloat16):
-            out = model(images)
-        loss = criterion(out.float().clamp(1e-7, 1 - 1e-7), targets)
+        out = model(images)
+        loss = criterion(out, targets)
 
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=10.0)
         optimizer.step()
-
+        
         loss_list.append(loss.item())
 
         now_lr = optimizer.state_dict()['param_groups'][0]['lr']
@@ -52,7 +48,7 @@ def train_one_epoch(train_loader,
             log_info = f'train: epoch {epoch}, iter:{iter}, loss: {np.mean(loss_list):.4f}, lr: {now_lr}'
             print(log_info)
             logger.info(log_info)
-    scheduler.step()
+    scheduler.step() 
     return step
 
 
@@ -76,14 +72,14 @@ def val_one_epoch(test_loader,
             msk = msk.to(device, non_blocking=True).float()
 
             out = model(img)
-            loss = criterion(out.clamp(1e-7, 1 - 1e-7), msk)
+            loss = criterion(out, msk)
 
             loss_list.append(loss.item())
             gts.append(msk.squeeze(1).cpu().detach().numpy())
             if type(out) is tuple:
                 out = out[0]
             out = out.squeeze(1).cpu().detach().numpy()
-            preds.append(out)
+            preds.append(out) 
 
     if epoch % config.val_interval == 0:
         preds = np.array(preds).reshape(-1)
@@ -134,7 +130,7 @@ def test_one_epoch(test_loader,
             msk = msk.to(device, non_blocking=True).float()
 
             out = model(img)
-            loss = criterion(out.clamp(1e-7, 1 - 1e-7), msk)
+            loss = criterion(out, msk)
 
             loss_list.append(loss.item())
             msk = msk.squeeze(1).cpu().detach().numpy()

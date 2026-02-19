@@ -22,7 +22,6 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=100, help='training epochs')
     parser.add_argument('--work_dir', type=str, default='./work_dir/branch1', help='work directory')
     parser.add_argument('--data_path', type=str, default='./data', help='data path')
-    parser.add_argument('--num_workers', type=int, default=None, help='dataloader workers (default: from config)')
     return parser.parse_args()
 
 
@@ -33,8 +32,6 @@ def main(config, args):
     config.batch_size = args.batch_size
     config.gpu_id = args.gpu_id
     config.epochs = args.epochs
-    if args.num_workers is not None:
-        config.num_workers = args.num_workers
 
     sys.path.append(config.work_dir + '/')
     log_dir = os.path.join(config.work_dir, 'log')
@@ -106,11 +103,10 @@ def main(config, args):
     min_loss = 999
     start_epoch = 1
     min_epoch = 1
-    loss = 999
 
     if os.path.exists(resume_model):
         print('#----------Resume Model and Other params----------#')
-        checkpoint = torch.load(resume_model, map_location=torch.device('cpu'), weights_only=False)
+        checkpoint = torch.load(resume_model, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
@@ -124,6 +120,8 @@ def main(config, args):
     step = 0
     print('#----------Training----------#')
     for epoch in range(start_epoch, config.epochs + 1):
+
+        torch.cuda.empty_cache()
 
         step = train_one_epoch(
             train_loader,
@@ -139,21 +137,20 @@ def main(config, args):
             device
         )
 
-        if epoch % 10 == 0 or epoch == config.epochs:
-            loss = val_one_epoch(
-                val_loader,
-                model,
-                criterion,
-                epoch,
-                logger,
-                config,
-                device
-            )
+        loss = val_one_epoch(
+            val_loader,
+            model,
+            criterion,
+            epoch,
+            logger,
+            config,
+            device
+        )
 
-            if loss < min_loss:
-                torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best.pth'))
-                min_loss = loss
-                min_epoch = epoch
+        if loss < min_loss:
+            torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best.pth'))
+            min_loss = loss
+            min_epoch = epoch
 
         torch.save(
             {
@@ -168,7 +165,7 @@ def main(config, args):
 
     if os.path.exists(os.path.join(checkpoint_dir, 'best.pth')):
         print('#----------Testing----------#')
-        best_weight = torch.load(config.work_dir + 'checkpoints/best.pth', map_location=torch.device('cpu'), weights_only=False)
+        best_weight = torch.load(config.work_dir + 'checkpoints/best.pth', map_location=torch.device('cpu'))
         model.load_state_dict(best_weight)
         loss = test_one_epoch(
             test_loader,

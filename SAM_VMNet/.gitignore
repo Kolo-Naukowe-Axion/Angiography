@@ -174,21 +174,20 @@ codegen/
 stenosis_detection/temp_run.m
 stenosis_detection/maskjiance1016_core.m
 
-# Saved model weights (large files)
+# Training scratch directories
 saved/
-*.pth
+result_branch*/
 
-# Inference output and sample images
-inference_output/
-inference/samples/
-
-# Dataset files (huge BMPs, zips, etc.)
-*.bmp
-*.zip
+# Dataset files (download separately)
 data/
 dataset/
-pre_trained_weights/
-result_branch*/
+arcade/
+*.bmp
+*.zip
+
+# Inference output
+inference_output/
+inference/samples/
 
 # Claude Code local settings
 .claude/

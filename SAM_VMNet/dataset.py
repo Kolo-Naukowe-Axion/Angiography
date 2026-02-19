@@ -99,7 +99,7 @@ class Branch2_datasets(Dataset):
             img_path, msk_path, feature_path = self.data[indx]
             img = np.array(Image.open(img_path).convert('RGB'))
             msk = np.expand_dims(np.array(Image.open(msk_path).convert('L')), axis=2) / 255
-            feature = torch.load(feature_path, map_location='cpu', weights_only=False)
+            feature = torch.load(feature_path, map_location='cpu')
 
             if self.transformer is not None:
                 img, msk = self.transformer((img, msk))
