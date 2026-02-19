@@ -8,7 +8,6 @@ from engine_branch1 import *
 import os
 import sys
 from utils import *
-from configs.config_setting import setting_config
 import warnings
 import argparse
 
@@ -22,6 +21,10 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=100, help='training epochs')
     parser.add_argument('--work_dir', type=str, default='./work_dir/branch1', help='work directory')
     parser.add_argument('--data_path', type=str, default='./data', help='data path')
+    parser.add_argument('--pretrained_ckpt', type=str, default=None,
+                        help='Path to pretrained checkpoint for weight initialization')
+    parser.add_argument('--config', type=str, default='arcade', choices=['arcade', 'dca1'],
+                        help='Config to use: arcade (default) or dca1')
     return parser.parse_args()
 
 
@@ -90,6 +93,19 @@ def main(config, args):
         load_ckpt_path=model_cfg['load_ckpt_path'],
     )
     model.load_from()
+
+    if args.pretrained_ckpt and os.path.exists(args.pretrained_ckpt):
+        print(f'#----------Loading pretrained checkpoint: {args.pretrained_ckpt}----------#')
+        pretrained = torch.load(args.pretrained_ckpt, map_location='cpu')
+        if 'model_state_dict' in pretrained:
+            state_dict = pretrained['model_state_dict']
+        else:
+            state_dict = pretrained
+        state_dict = {k: v for k, v in state_dict.items()
+                      if 'total_ops' not in k and 'total_params' not in k}
+        model.load_state_dict(state_dict, strict=False)
+        print(f'Pretrained weights loaded successfully.')
+
     model = model.to(device)
 
     cal_params_flops(model, 256, logger)
@@ -182,6 +198,10 @@ def main(config, args):
 
 
 if __name__ == '__main__':
-    config = setting_config
     args = parse_args()
+    if args.config == 'dca1':
+        from configs.config_setting_dca1 import setting_config
+    else:
+        from configs.config_setting import setting_config
+    config = setting_config
     main(config, args)
