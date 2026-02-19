@@ -1,22 +1,21 @@
 from .vmamba import VSSM
 import torch
 from torch import nn
-from configs.config_setting import setting_config
 
 class VMUNet(nn.Module):
-    def __init__(self, 
-                 input_channels=3, 
+    def __init__(self,
+                 input_channels=3,
                  num_classes=1,
-                 depths=[2, 2, 9, 2], 
+                 depths=[2, 2, 9, 2],
                  depths_decoder=[2, 9, 2, 2],
                  drop_path_rate=0.2,
                  load_ckpt_path=None,
+                 gpu_id='0',
                 ):
         super().__init__()
 
         self.load_ckpt_path = load_ckpt_path
         self.num_classes = num_classes
-        gpu_id = setting_config.gpu_id
         self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         self.vmunet = VSSM(in_chans=input_channels,
                            num_classes=num_classes,
