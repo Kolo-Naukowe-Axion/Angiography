@@ -109,7 +109,13 @@ def main(config, args):
 
     model = model.to(device)
 
-    cal_params_flops(model, 256, logger)
+    try:
+        cal_params_flops(model, 256, logger)
+    except Exception as e:
+        print(f'Warning: cal_params_flops failed: {e}')
+        total = sum(p.numel() for p in model.parameters())
+        print(f"Total params: {total/1e6:.2f}M")
+        logger.info(f'Total params: {total/1e6:.4f}M (flops calculation skipped)')
 
     print('#----------Prepareing loss, opt, sch and amp----------#')
     criterion = config.criterion
