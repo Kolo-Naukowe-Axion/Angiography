@@ -1,0 +1,24 @@
+# Virtual environment
+.venv/
+
+# Dataset (too large for git)
+dataset/
+dataset.tar.gz
+
+# Training runs (intermediate outputs)
+runs/
+
+# macOS
+.DS_Store
+._*
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# Config
+.claude/
