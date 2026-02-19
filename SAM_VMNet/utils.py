@@ -314,9 +314,9 @@ class myNormalize:
             'train': {'mean': 157.561, 'std': 26.706},
             'test':  {'mean': 149.034, 'std': 32.022},
         },
-        'dca1': {  # DCA1 dataset — update after running setup_dca1.py
-            'train': {'mean': 80.0, 'std': 50.0},
-            'test':  {'mean': 80.0, 'std': 50.0},
+        'dca1': {  # DCA1 dataset (134 coronary angiograms)
+            'train': {'mean': 130.406, 'std': 46.196},
+            'test':  {'mean': 132.384, 'std': 38.541},
         },
     }
 
