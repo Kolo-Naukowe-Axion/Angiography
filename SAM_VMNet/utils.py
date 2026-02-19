@@ -309,13 +309,22 @@ class myRandomRotation:
 
 
 class myNormalize:
+    STATS = {
+        'vessel': {  # ARCADE dataset
+            'train': {'mean': 157.561, 'std': 26.706},
+            'test':  {'mean': 149.034, 'std': 32.022},
+        },
+        'dca1': {  # DCA1 dataset — update after running setup_dca1.py
+            'train': {'mean': 80.0, 'std': 50.0},
+            'test':  {'mean': 80.0, 'std': 50.0},
+        },
+    }
+
     def __init__(self, data_name, train=True):
-            if train:
-                self.mean = 157.561
-                self.std = 26.706
-            else:
-                self.mean = 149.034
-                self.std = 32.022
+        key = 'train' if train else 'test'
+        stats = self.STATS.get(data_name, self.STATS['vessel'])
+        self.mean = stats[key]['mean']
+        self.std = stats[key]['std']
 
     def __call__(self, data):
         img, msk = data
