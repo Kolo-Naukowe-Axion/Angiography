@@ -97,38 +97,36 @@ def find_image_mask_pairs():
         sys.exit(1)
 
     # Separate images and masks
+    # DCA1 naming: "1.pgm" (image), "1_gt.pgm" (mask) — both in same directory
     images = {}
     masks = {}
 
     for path in sorted(all_pgms):
         basename = os.path.basename(path).lower()
-        # Try to extract numeric ID
-        # Common patterns: "1_image.pgm"/"1_gt.pgm" or "image01.pgm"/"gt01.pgm"
-        if "_gt" in basename or "/gt/" in path.lower() or "\\gt\\" in path.lower():
-            # This is a mask
-            # Extract ID: everything before _gt or the number
-            name_part = basename.replace("_gt", "").split(".")[0]
-            num = "".join(c for c in name_part if c.isdigit())
+        name_no_ext = basename.split(".")[0]
+
+        if "_gt" in name_no_ext:
+            # Mask file: e.g. "1_gt.pgm", "100_gt.pgm"
+            num_part = name_no_ext.replace("_gt", "")
+            num = "".join(c for c in num_part if c.isdigit())
             if num:
                 masks[int(num)] = path
-        elif (
-            "_image" in basename
-            or "/image/" in path.lower()
-            or "\\image\\" in path.lower()
-        ):
-            name_part = basename.replace("_image", "").split(".")[0]
-            num = "".join(c for c in name_part if c.isdigit())
+        elif name_no_ext.isdigit():
+            # Pure numeric filename: e.g. "1.pgm", "100.pgm" — these are images
+            images[int(name_no_ext)] = path
+        elif "_image" in name_no_ext:
+            num_part = name_no_ext.replace("_image", "")
+            num = "".join(c for c in num_part if c.isdigit())
             if num:
                 images[int(num)] = path
         else:
-            # Try to guess: if basename is just a number, check parent folder
-            name_part = basename.split(".")[0]
-            num = "".join(c for c in name_part if c.isdigit())
+            # Fallback: check parent folder name
+            num = "".join(c for c in name_no_ext if c.isdigit())
             parent = os.path.basename(os.path.dirname(path)).lower()
             if num:
                 if "gt" in parent or "mask" in parent or "label" in parent:
                     masks[int(num)] = path
-                elif "image" in parent or "img" in parent or "original" in parent:
+                else:
                     images[int(num)] = path
 
     # Match pairs
@@ -138,19 +136,6 @@ def find_image_mask_pairs():
         print(f"  Found {len(images)} images and {len(masks)} masks")
         print(f"  Image IDs (first 10): {sorted(images.keys())[:10]}")
         print(f"  Mask IDs (first 10): {sorted(masks.keys())[:10]}")
-        # Fallback: try alphabetical pairing
-        all_sorted = sorted(all_pgms)
-        mid = len(all_sorted) // 2
-        if len(all_sorted) % 2 == 0:
-            print("  Attempting alphabetical split (first half=images, second=masks)...")
-            for i, (img_path, msk_path) in enumerate(
-                zip(all_sorted[:mid], all_sorted[mid:])
-            ):
-                images[i + 1] = img_path
-                masks[i + 1] = msk_path
-            common_ids = sorted(set(images.keys()) & set(masks.keys()))
-
-    if not common_ids:
         sys.exit(1)
 
     pairs = [(images[i], masks[i]) for i in common_ids]
