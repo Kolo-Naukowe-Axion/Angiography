@@ -1,3 +1,14 @@
 dataset-arcade/
 dataset-mendeley/
 dataset-mix/
+
+demo-app/data/patients/*
+!demo-app/data/patients/manifest.json
+
+demo-app/frontend/node_modules/
+demo-app/frontend/dist/
+
+demo-app/backend/.venv/
+demo-app/backend/.venv*/
+__pycache__/
+.pytest_cache/

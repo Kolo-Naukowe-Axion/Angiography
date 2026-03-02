@@ -1,0 +1,39 @@
+{
+  "patients": [
+    {
+      "id": "dataset_14_002_5",
+      "displayName": "Dataset 14 002 5",
+      "framesDir": "dataset_14_002_5/frames",
+      "defaultFps": 12,
+      "labelsDir": "dataset_14_002_5/labels"
+    },
+    {
+      "id": "dataset_14_002_8",
+      "displayName": "Dataset 14 002 8",
+      "framesDir": "dataset_14_002_8/frames",
+      "defaultFps": 12,
+      "labelsDir": "dataset_14_002_8/labels"
+    },
+    {
+      "id": "dataset_14_003_1",
+      "displayName": "Dataset 14 003 1",
+      "framesDir": "dataset_14_003_1/frames",
+      "defaultFps": 12,
+      "labelsDir": "dataset_14_003_1/labels"
+    },
+    {
+      "id": "dataset_14_006_1",
+      "displayName": "Dataset 14 006 1",
+      "framesDir": "dataset_14_006_1/frames",
+      "defaultFps": 12,
+      "labelsDir": "dataset_14_006_1/labels"
+    },
+    {
+      "id": "dataset_14_007_10",
+      "displayName": "Dataset 14 007 10",
+      "framesDir": "dataset_14_007_10/frames",
+      "defaultFps": 12,
+      "labelsDir": "dataset_14_007_10/labels"
+    }
+  ]
+}
