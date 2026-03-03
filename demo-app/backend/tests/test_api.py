@@ -37,3 +37,11 @@ def test_get_labels(client):
     payload = response.json()
     assert payload["hasLabels"] is True
     assert len(payload["boxes"]) == 1
+
+
+def test_get_labels_missing_label_file_returns_empty_frame_labels(client):
+    response = client.get("/api/labels/patient_001/1")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["hasLabels"] is False
+    assert payload["boxes"] == []
