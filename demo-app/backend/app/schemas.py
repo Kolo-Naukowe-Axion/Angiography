@@ -6,10 +6,10 @@ from pydantic import BaseModel, Field
 
 
 class ModelCard(BaseModel):
-    id: Literal["yolo26s", "yolo26m", "yolov8", "sam_vmnet"]
+    id: Literal["yolo26s", "yolo26n"]
     name: str
     active: bool
-    status: Literal["ready", "coming_soon"]
+    status: Literal["ready", "unavailable"]
     notes: str
 
 
@@ -55,6 +55,10 @@ class PrefetchResponse(BaseModel):
     queued: int
     startFrame: int
     endFrame: int
+
+
+class ModelSelectRequest(BaseModel):
+    modelId: Literal["yolo26s", "yolo26n"]
 
 
 class HealthResponse(BaseModel):

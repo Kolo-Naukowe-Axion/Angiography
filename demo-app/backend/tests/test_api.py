@@ -1,6 +1,30 @@
 from __future__ import annotations
 
 
+def test_get_models(client):
+    response = client.get("/api/models")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 2
+    assert {card["id"] for card in payload} == {"yolo26s", "yolo26n"}
+    assert all(card["status"] == "ready" for card in payload)
+    active_ids = [card["id"] for card in payload if card["active"]]
+    assert active_ids == ["yolo26s"]
+
+
+def test_select_model_switches_active_card(client):
+    response = client.post("/api/models/select", json={"modelId": "yolo26n"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 2
+    active_ids = [card["id"] for card in payload if card["active"]]
+    assert active_ids == ["yolo26n"]
+
+    health = client.get("/api/health")
+    assert health.status_code == 200
+    assert "YOLO26n/weights/best.pt" in health.json()["modelPath"].replace("\\", "/")
+
+
 def test_get_patients(client):
     response = client.get("/api/patients")
     assert response.status_code == 200

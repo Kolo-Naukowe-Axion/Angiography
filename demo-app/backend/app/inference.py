@@ -21,6 +21,26 @@ def select_device() -> str:
     return "cpu"
 
 
+def ensure_ultralytics_loss_compatibility() -> None:
+    """Backfill classes needed only for deserializing older/newer checkpoints."""
+    import torch
+    from ultralytics.utils import loss as ultralytics_loss
+
+    if hasattr(ultralytics_loss, "E2ELoss"):
+        return
+
+    class E2ELoss(torch.nn.Module):
+        def __init__(self, *args, **kwargs):
+            super().__init__()
+            self.args = args
+            self.kwargs = kwargs
+
+        def forward(self, *args, **kwargs):
+            raise RuntimeError("E2ELoss compatibility shim should not be used for runtime loss computation.")
+
+    ultralytics_loss.E2ELoss = E2ELoss
+
+
 @dataclass
 class CachedInference:
     response: InferFrameResponse
@@ -79,6 +99,7 @@ class YOLOInferenceService:
         def _load_model() -> Any:
             from ultralytics import YOLO
 
+            ensure_ultralytics_loss_compatibility()
             return YOLO(str(model_path))
 
         model = await asyncio.to_thread(_load_model)

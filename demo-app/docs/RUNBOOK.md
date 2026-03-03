@@ -74,5 +74,7 @@ VITE_API_BASE_URL=http://127.0.0.1:8000
 ## 7. Notes
 
 - YOLO26s weights are expected at `YOLO26s/weights/best.pt`.
+- YOLO26n is also available at `YOLO26n/weights/best.pt` (set `DEMO_MODEL_PATH` to switch).
 - Data under `demo-app/data/patients/` is ignored by git except `manifest.json`.
-- Only YOLO26s is runnable in v1; other model cards are placeholders.
+- Default runtime remains YOLO26s unless `DEMO_MODEL_PATH` is overridden.
+- The model rail supports switching between YOLO26s and YOLO26n at runtime via `/api/models/select`.
