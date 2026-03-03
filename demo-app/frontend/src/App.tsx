@@ -9,7 +9,16 @@ import {
   inferFrame,
   prefetchFrames,
 } from "./api";
-import type { Box, HealthResponse, InferFrameResponse, ModelCard, PatientSummary } from "./types";
+import { computeFrameMetrics } from "./metrics";
+import type { MetricValue } from "./metrics";
+import type {
+  Box,
+  HealthResponse,
+  InferFrameResponse,
+  LabelsResponse,
+  ModelCard,
+  PatientSummary,
+} from "./types";
 
 const SPEED_OPTIONS = [0.5, 1, 2] as const;
 const PREFETCH_LOOKAHEAD = 12;
@@ -18,6 +27,22 @@ type Dimensions = {
   width: number;
   height: number;
 };
+
+type FrameLabels = {
+  hasLabels: boolean;
+  boxes: Box[];
+};
+
+function emptyFrameLabels(): FrameLabels {
+  return { hasLabels: false, boxes: [] };
+}
+
+function formatMetricValue(metric: MetricValue): string {
+  if (metric.status === "na") {
+    return "N/A";
+  }
+  return `${(metric.value * 100).toFixed(1)}%`;
+}
 
 function App() {
   const [models, setModels] = useState<ModelCard[]>([]);
@@ -33,7 +58,7 @@ function App() {
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [inference, setInference] = useState<InferFrameResponse | null>(null);
-  const [groundTruth, setGroundTruth] = useState<Box[]>([]);
+  const [frameLabels, setFrameLabels] = useState<FrameLabels>(emptyFrameLabels);
 
   const [error, setError] = useState<string>("");
 
@@ -74,7 +99,7 @@ function App() {
     setSelectedPatientId(patientId);
     setFrameIndex(0);
     setInference(null);
-    setGroundTruth([]);
+    setFrameLabels(emptyFrameLabels());
     setIsPlaying(false);
   };
 
@@ -121,11 +146,18 @@ function App() {
 
     async function loadFrameContext() {
       try {
+        const labelsPromise = patient.hasLabels
+          ? getLabels(patient.id, frameIndex)
+          : Promise.resolve<LabelsResponse>({
+              patientId: patient.id,
+              frameIndex,
+              hasLabels: false,
+              boxes: [],
+            });
+
         const [nextInference, nextLabels] = await Promise.all([
           inferFrame(patient.id, frameIndex),
-          showGroundTruth && patient.hasLabels
-            ? getLabels(patient.id, frameIndex)
-            : Promise.resolve({ boxes: [] }),
+          labelsPromise,
         ]);
 
         if (canceled) {
@@ -134,7 +166,10 @@ function App() {
 
         setError("");
         setInference(nextInference);
-        setGroundTruth(nextLabels.boxes ?? []);
+        setFrameLabels({
+          hasLabels: nextLabels.hasLabels,
+          boxes: nextLabels.boxes ?? [],
+        });
 
         const start = Math.min(frameIndex + 1, maxFrameIndex);
         const end = Math.min(frameIndex + PREFETCH_LOOKAHEAD, maxFrameIndex);
@@ -154,7 +189,7 @@ function App() {
     return () => {
       canceled = true;
     };
-  }, [frameIndex, maxFrameIndex, selectedPatient, showGroundTruth]);
+  }, [frameIndex, maxFrameIndex, selectedPatient]);
 
   useEffect(() => {
     if (!selectedPatient) {
@@ -203,12 +238,25 @@ function App() {
 
   const xScale = renderSize.width / naturalSize.width;
   const yScale = renderSize.height / naturalSize.height;
+  const groundTruthBoxes = frameLabels.boxes;
 
   const frameImageUrl = selectedPatient ? getFrameUrl(selectedPatient.id, frameIndex) : "";
+
+  const frameMetrics = useMemo(
+    () =>
+      computeFrameMetrics({
+        predictions: inference?.boxes ?? [],
+        groundTruth: groundTruthBoxes,
+        labelsAvailable: frameLabels.hasLabels,
+        iouThreshold: 0.5,
+      }),
+    [groundTruthBoxes, inference, frameLabels.hasLabels],
+  );
 
   const frameStateLabel = stenosisDetected ? "Stenosis detected" : "No stenosis detected";
   const inferenceMsLabel = inference ? `${inference.inferenceMs.toFixed(1)} ms` : "-";
   const sourceLabel = inference ? (inference.cached ? "cache" : "live") : "-";
+  const metricsUnavailableReason = selectedPatient && frameMetrics.iou.status === "na" ? frameMetrics.iou.reason : "";
 
   return (
     <div className="app-shell">
@@ -271,16 +319,25 @@ function App() {
             <div className={`classification-banner ${stenosisDetected ? "alert" : "clear"}`}>
               {frameStateLabel}
             </div>
-            <div className="frame-meta">
-              <span>
-                Frame <strong>{frameIndex + 1}</strong>/{selectedPatient ? selectedPatient.frameCount : 0}
-              </span>
-              <span>
-                Inference <strong>{inferenceMsLabel}</strong>
-              </span>
-              <span>
-                Source <strong>{sourceLabel}</strong>
-              </span>
+            <div className="header-metadata">
+              <div className="frame-meta">
+                <span>
+                  Frame <strong>{frameIndex + 1}</strong>/{selectedPatient ? selectedPatient.frameCount : 0}
+                </span>
+                <span>
+                  Inference <strong>{inferenceMsLabel}</strong>
+                </span>
+                <span>
+                  Source <strong>{sourceLabel}</strong>
+                </span>
+              </div>
+              <div className="quality-metrics">
+                <div className="metric-chip">
+                  <span className="metric-label">IoU (frame)</span>
+                  <strong>{formatMetricValue(frameMetrics.iou)}</strong>
+                </div>
+              </div>
+              {metricsUnavailableReason ? <span className="metrics-note">{metricsUnavailableReason}</span> : null}
             </div>
           </div>
 
@@ -322,7 +379,7 @@ function App() {
                 </div>
               ))}
               {showGroundTruth
-                ? groundTruth.map((box, index) => (
+                ? groundTruthBoxes.map((box, index) => (
                     <div
                       key={`gt-${index}-${box.x1}-${box.y1}`}
                       className="bbox ground-truth"

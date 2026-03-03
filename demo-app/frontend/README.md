@@ -8,6 +8,8 @@ React + TypeScript interface for the macOS localhost demo.
 - Live YOLO26s overlay rendering per frame.
 - Confidence threshold slider (`0.10` to `0.90`) without forcing re-inference.
 - Optional ground-truth overlay toggle (if labels are available).
+- Per-frame quality metric: `IoU (frame)` computed from inference + labels.
+- IoU metric value is independent of the confidence threshold slider.
 - Model rail with YOLO26s active and additional model placeholders.
 
 ## Environment
