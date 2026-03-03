@@ -8,6 +8,7 @@ import {
   getPatients,
   inferFrame,
   prefetchFrames,
+  selectModel,
 } from "./api";
 import { computeFrameMetrics } from "./metrics";
 import type { MetricValue } from "./metrics";
@@ -61,6 +62,7 @@ function App() {
   const [frameLabels, setFrameLabels] = useState<FrameLabels>(emptyFrameLabels);
 
   const [error, setError] = useState<string>("");
+  const [isSwitchingModel, setIsSwitchingModel] = useState(false);
 
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -71,6 +73,7 @@ function App() {
     () => patients.find((patient) => patient.id === selectedPatientId) ?? null,
     [patients, selectedPatientId],
   );
+  const activeModelId = useMemo(() => models.find((model) => model.active)?.id ?? "", [models]);
 
   const thresholdBoxes = useMemo(
     () => (inference?.boxes ?? []).filter((box) => box.confidence >= threshold),
@@ -101,6 +104,26 @@ function App() {
     setInference(null);
     setFrameLabels(emptyFrameLabels());
     setIsPlaying(false);
+  };
+
+  const handleSelectModel = async (modelId: ModelCard["id"]) => {
+    const selected = models.find((model) => model.id === modelId);
+    if (isSwitchingModel || selected?.active || selected?.status !== "ready") {
+      return;
+    }
+
+    setIsSwitchingModel(true);
+    try {
+      const updatedModels = await selectModel(modelId);
+      setModels(updatedModels);
+      setHealth(await getHealth());
+      setInference(null);
+      setError("");
+    } catch (switchError) {
+      setError(switchError instanceof Error ? switchError.message : "Failed to switch model.");
+    } finally {
+      setIsSwitchingModel(false);
+    }
   };
 
   useEffect(() => {
@@ -189,7 +212,7 @@ function App() {
     return () => {
       canceled = true;
     };
-  }, [frameIndex, maxFrameIndex, selectedPatient]);
+  }, [activeModelId, frameIndex, maxFrameIndex, selectedPatient]);
 
   useEffect(() => {
     if (!selectedPatient) {
@@ -282,16 +305,48 @@ function App() {
           <section className="rail-card">
             <h2>Models</h2>
             <div className="model-list">
-              {models.map((model) => (
-                <article key={model.id} className={`model-card ${model.active ? "active" : "inactive"}`}>
-                  <div className="model-header-row">
-                    <h3>{model.name}</h3>
-                    <span className={`state-pill ${model.status}`}>{model.status.replace("_", " ")}</span>
-                  </div>
-                  <p>{model.notes}</p>
-                  {!model.active ? <span className="disabled-note">Controls disabled in v1</span> : null}
-                </article>
-              ))}
+              {models.map((model) => {
+                const selectable = !model.active && model.status === "ready";
+                const canSelect = selectable && !isSwitchingModel;
+
+                return (
+                  <article
+                    key={model.id}
+                    className={`model-card ${model.active ? "active" : "inactive"} ${selectable ? "selectable" : ""}`}
+                    role={selectable ? "button" : undefined}
+                    tabIndex={selectable ? 0 : -1}
+                    aria-disabled={selectable ? isSwitchingModel : undefined}
+                    onClick={() => {
+                      if (!canSelect) {
+                        return;
+                      }
+                      void handleSelectModel(model.id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (!canSelect) {
+                        return;
+                      }
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        void handleSelectModel(model.id);
+                      }
+                    }}
+                  >
+                    <div className="model-header-row">
+                      <h3>{model.name}</h3>
+                      <span className={`state-pill ${model.status}`}>{model.status.replace("_", " ")}</span>
+                    </div>
+                    <p>{model.notes}</p>
+                    {model.active ? <span className="disabled-note">Active model</span> : null}
+                    {!model.active && model.status !== "ready" ? (
+                      <span className="disabled-note">Unavailable</span>
+                    ) : null}
+                    {!model.active && model.status === "ready" ? (
+                      <span className="disabled-note">{isSwitchingModel ? "Switching..." : "Click card to activate"}</span>
+                    ) : null}
+                  </article>
+                );
+              })}
             </div>
           </section>
 

@@ -159,11 +159,27 @@ body {
   border: 1px solid rgba(103, 247, 255, 0.24);
   padding: 0.72rem;
   background: rgba(7, 17, 28, 0.72);
-  transition: transform 180ms ease, border-color 180ms ease;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.model-card:hover {
+.model-card.selectable {
+  cursor: pointer;
+}
+
+.model-card.selectable:hover {
   transform: translateY(-2px);
+  border-color: rgba(103, 247, 255, 0.58);
+}
+
+.model-card.selectable:focus-visible {
+  outline: none;
+  border-color: rgba(103, 247, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(103, 247, 255, 0.3);
+}
+
+.model-card.selectable[aria-disabled="true"] {
+  cursor: wait;
+  transform: none;
 }
 
 .model-card.inactive {
@@ -215,6 +231,7 @@ body {
   color: var(--cyan);
 }
 
+.state-pill.unavailable,
 .state-pill.coming_soon {
   background: rgba(255, 93, 115, 0.17);
   color: #ffc4cc;

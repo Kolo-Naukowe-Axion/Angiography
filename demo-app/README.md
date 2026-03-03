@@ -1,6 +1,6 @@
 # Angiography Demo App (macOS)
 
-FastAPI + React demo for visualizing live YOLO26s classification on curated angiography patient frame sequences.
+FastAPI + React demo for visualizing YOLO26s/YOLO26n classification on curated angiography patient frame sequences, with YOLO26s default and YOLO26n selectable.
 
 ## Directory Layout
 

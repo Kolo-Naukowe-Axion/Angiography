@@ -10,7 +10,7 @@ React + TypeScript interface for the macOS localhost demo.
 - Optional ground-truth overlay toggle (if labels are available).
 - Per-frame quality metric: `IoU (frame)` computed from inference + labels.
 - IoU metric value is independent of the confidence threshold slider.
-- Model rail with YOLO26s active and additional model placeholders.
+- Model rail includes YOLO26s (default) and selectable YOLO26n.
 
 ## Environment
 

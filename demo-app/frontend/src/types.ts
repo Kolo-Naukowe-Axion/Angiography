@@ -1,8 +1,8 @@
 export type ModelCard = {
-  id: "yolo26s" | "yolo26m" | "yolov8" | "sam_vmnet";
+  id: "yolo26s" | "yolo26n";
   name: string;
   active: boolean;
-  status: "ready" | "coming_soon";
+  status: "ready" | "unavailable";
   notes: string;
 };
 

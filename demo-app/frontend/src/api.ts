@@ -43,6 +43,13 @@ export function getModels(): Promise<ModelCard[]> {
   return fetchJson<ModelCard[]>("/api/models");
 }
 
+export function selectModel(modelId: ModelCard["id"]): Promise<ModelCard[]> {
+  return fetchJson<ModelCard[]>("/api/models/select", {
+    method: "POST",
+    body: JSON.stringify({ modelId }),
+  });
+}
+
 export function getPatients(): Promise<PatientSummary[]> {
   return fetchJson<PatientSummary[]>("/api/patients");
 }

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import replace
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,11 +14,12 @@ from .config import Settings
 from .data import ManifestValidationError, PatientStore
 from .inference import MockInferenceService, YOLOInferenceService
 from .label_utils import parse_yolo_labels_to_boxes
-from .models_registry import get_model_cards
+from .models_registry import MODEL_PATHS, get_model_cards, get_model_path
 from .schemas import (
     HealthResponse,
     InferFrameRequest,
     InferFrameResponse,
+    ModelSelectRequest,
     PrefetchRequest,
     PrefetchResponse,
 )
@@ -24,6 +28,39 @@ from .schemas import (
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or Settings.from_env()
 
+    async def _create_model_service(model_path: Path):
+        if app_settings.use_mock_model:
+            return await MockInferenceService.create(
+                model_path=model_path,
+                cache_size=app_settings.cache_size,
+                min_infer_confidence=app_settings.min_infer_confidence,
+                prefetch_queue_size=app_settings.prefetch_queue_size,
+            )
+        return await YOLOInferenceService.from_weights(
+            model_path=model_path,
+            cache_size=app_settings.cache_size,
+            min_infer_confidence=app_settings.min_infer_confidence,
+            prefetch_queue_size=app_settings.prefetch_queue_size,
+        )
+
+    async def _probe_model(model_path: Path) -> tuple[bool, str | None]:
+        if not app_settings.use_mock_model and not model_path.exists():
+            return False, f"weights not found at {model_path}"
+
+        probe_service = None
+        try:
+            probe_service = await _create_model_service(model_path)
+            await probe_service.start()
+            return True, None
+        except Exception as error:
+            return False, str(error)
+        finally:
+            if probe_service is not None:
+                try:
+                    await probe_service.stop()
+                except Exception:
+                    pass
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         try:
@@ -31,27 +68,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except ManifestValidationError as error:
             raise RuntimeError(f"Manifest validation failed: {error}") from error
 
-        if app_settings.use_mock_model:
-            model_service = await MockInferenceService.create(
-                model_path=app_settings.model_path,
-                cache_size=app_settings.cache_size,
-                min_infer_confidence=app_settings.min_infer_confidence,
-                prefetch_queue_size=app_settings.prefetch_queue_size,
-            )
-        else:
-            model_service = await YOLOInferenceService.from_weights(
-                model_path=app_settings.model_path,
-                cache_size=app_settings.cache_size,
-                min_infer_confidence=app_settings.min_infer_confidence,
-                prefetch_queue_size=app_settings.prefetch_queue_size,
-            )
+        model_service = await _create_model_service(app_settings.model_path)
 
         await model_service.start()
         app.state.settings = app_settings
+        app.state.model_switch_lock = asyncio.Lock()
         app.state.patient_store = patient_store
         app.state.model_service = model_service
+        model_availability: dict[str, bool] = {}
+        model_availability_reasons: dict[str, str] = {}
+        for model_id, model_path in MODEL_PATHS.items():
+            if model_path == app_settings.model_path:
+                model_availability[model_id] = True
+                continue
+            is_ready, reason = await _probe_model(model_path)
+            model_availability[model_id] = is_ready
+            if reason:
+                model_availability_reasons[model_id] = reason
+        app.state.model_availability = model_availability
+        app.state.model_availability_reasons = model_availability_reasons
         yield
-        await model_service.stop()
+        await app.state.model_service.stop()
 
     app = FastAPI(title="Angiography Demo API", version="1.0.0", lifespan=lifespan)
 
@@ -71,7 +108,46 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/models")
     async def models():
-        return get_model_cards()
+        return get_model_cards(
+            app.state.settings.model_path,
+            app.state.model_availability,
+            app.state.model_availability_reasons,
+        )
+
+    @app.post("/api/models/select")
+    async def select_model(payload: ModelSelectRequest):
+        model_path = get_model_path(payload.modelId)
+        if model_path is None:
+            raise HTTPException(status_code=400, detail=f"Unsupported model id: {payload.modelId}")
+
+        async with app.state.model_switch_lock:
+            current_model_path = app.state.settings.model_path
+            if current_model_path == model_path:
+                return get_model_cards(
+                    current_model_path,
+                    app.state.model_availability,
+                    app.state.model_availability_reasons,
+                )
+
+            previous_service = app.state.model_service
+            try:
+                next_service = await _create_model_service(model_path)
+                await next_service.start()
+            except Exception as error:
+                app.state.model_availability[payload.modelId] = False
+                app.state.model_availability_reasons[payload.modelId] = str(error)
+                raise HTTPException(status_code=500, detail=f"Failed to load selected model: {error}") from error
+
+            app.state.model_service = next_service
+            app.state.settings = replace(app.state.settings, model_path=model_path)
+            app.state.model_availability[payload.modelId] = True
+            app.state.model_availability_reasons.pop(payload.modelId, None)
+            await previous_service.stop()
+            return get_model_cards(
+                model_path,
+                app.state.model_availability,
+                app.state.model_availability_reasons,
+            )
 
     @app.get("/api/patients")
     async def patients():
