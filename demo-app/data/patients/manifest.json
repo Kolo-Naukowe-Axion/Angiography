@@ -106,6 +106,66 @@
       "displayName": "DICOM IM 0012 0001 0001",
       "framesDir": "dicom_im_0012_0001_0001/frames",
       "defaultFps": 12
+    },
+    {
+      "id": "arcade_dataset_14_002_5",
+      "displayName": "ARCADE Dataset 14 002 5",
+      "datasetId": "arcade",
+      "labelType": "mask",
+      "framesDir": "dataset_14_002_5/frames",
+      "labelMasksDir": "dataset_14_002_5/label_masks",
+      "predictionMasks": {
+        "sam_vmnet_arcade": "dataset_14_002_5/predictions/sam_vmnet_arcade"
+      },
+      "defaultFps": 12
+    },
+    {
+      "id": "arcade_dataset_14_002_8",
+      "displayName": "ARCADE Dataset 14 002 8",
+      "datasetId": "arcade",
+      "labelType": "mask",
+      "framesDir": "dataset_14_002_8/frames",
+      "labelMasksDir": "dataset_14_002_8/label_masks",
+      "predictionMasks": {
+        "sam_vmnet_arcade": "dataset_14_002_8/predictions/sam_vmnet_arcade"
+      },
+      "defaultFps": 12
+    },
+    {
+      "id": "arcade_dataset_14_003_1",
+      "displayName": "ARCADE Dataset 14 003 1",
+      "datasetId": "arcade",
+      "labelType": "mask",
+      "framesDir": "dataset_14_003_1/frames",
+      "labelMasksDir": "dataset_14_003_1/label_masks",
+      "predictionMasks": {
+        "sam_vmnet_arcade": "dataset_14_003_1/predictions/sam_vmnet_arcade"
+      },
+      "defaultFps": 12
+    },
+    {
+      "id": "arcade_dataset_14_006_1",
+      "displayName": "ARCADE Dataset 14 006 1",
+      "datasetId": "arcade",
+      "labelType": "mask",
+      "framesDir": "dataset_14_006_1/frames",
+      "labelMasksDir": "dataset_14_006_1/label_masks",
+      "predictionMasks": {
+        "sam_vmnet_arcade": "dataset_14_006_1/predictions/sam_vmnet_arcade"
+      },
+      "defaultFps": 12
+    },
+    {
+      "id": "arcade_dataset_14_007_10",
+      "displayName": "ARCADE Dataset 14 007 10",
+      "datasetId": "arcade",
+      "labelType": "mask",
+      "framesDir": "dataset_14_007_10/frames",
+      "labelMasksDir": "dataset_14_007_10/label_masks",
+      "predictionMasks": {
+        "sam_vmnet_arcade": "dataset_14_007_10/predictions/sam_vmnet_arcade"
+      },
+      "defaultFps": 12
     }
   ]
 }

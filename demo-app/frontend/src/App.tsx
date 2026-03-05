@@ -301,7 +301,9 @@ function App() {
 
     setIsSwitchingModel(true);
     try {
-      const [updatedModels, updatedPatients, nextHealth] = await Promise.all([selectModel(modelId), getPatients(), getHealth()]);
+      // Keep calls ordered: /api/patients is dataset-scoped by active model.
+      const updatedModels = await selectModel(modelId);
+      const [updatedPatients, nextHealth] = await Promise.all([getPatients(), getHealth()]);
       setModels(updatedModels);
       setPatients(updatedPatients);
       setHealth(nextHealth);
