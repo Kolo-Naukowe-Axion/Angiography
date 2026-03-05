@@ -1,6 +1,11 @@
 # Angiography Demo App (macOS)
 
-FastAPI + React demo for visualizing YOLO26s/YOLO26n classification on curated angiography patient frame sequences.
+FastAPI + React demo for visualizing model outputs on curated angiography patient frame sequences.
+
+Supported model/dataset modes:
+
+- `YOLO26s` / `YOLO26n` on Mendeley-style bbox-labeled sequences.
+- `SAM-VMNet (ARCADE)` on precomputed binary mask predictions + mask ground truth.
 
 ## Quick Start (One Command)
 
@@ -10,13 +15,14 @@ From the `Angiography/` directory:
 ./demo-app/scripts/run_demo.sh start
 ```
 
-This command now bootstraps everything automatically:
+This command bootstraps everything automatically:
 
 - Creates/fixes `backend/.venv` if needed.
 - Installs backend Python dependencies from `backend/requirements.txt`.
 - Installs frontend npm dependencies from `frontend/package-lock.json`.
 - Validates patient data manifest and frame folders.
-- Validates model weights (or falls back to mock mode if weights are missing).
+- Validates active model path (or falls back to mock mode if missing).
+- Reports SAM-VMNet precomputed-mask readiness.
 - Starts backend (`:8000`) and frontend (`:5173`).
 
 Open `http://127.0.0.1:5173` when ready.
@@ -40,14 +46,41 @@ Open `http://127.0.0.1:5173` when ready.
 - `DEMO_DATA_DIR` (default `demo-app/data/patients`)
 - `DEMO_MODEL_PATH` (default `YOLO26s/weights/best.pt`)
 - `DEMO_USE_MOCK_MODEL=1` to force mock inference
-- `DEMO_SOURCE_ROOT=/ABS/PATH` to auto-run patient data preparation when data is invalid/missing
+- `DEMO_SOURCE_ROOT=/ABS/PATH` to auto-run Mendeley bbox patient data preparation when data is invalid/missing
+
+## ARCADE + SAM-VMNet Preparation
+
+The demo serves SAM-VMNet in **precomputed mask mode**.
+
+### 1) Prepare ARCADE frame + GT mask data into demo patient format
+
+```bash
+python3 demo-app/scripts/prepare_arcade_data.py \
+  --source-root /ABS/PATH/TO/ARCADE_OR_ARCADE_SYNTAX \
+  --output-root demo-app/data/patients
+```
+
+Defaults are medium curated size (`10` sequences, up to `240` frames/sequence), configurable by CLI flags.
+
+### 2) Precompute SAM-VMNet prediction masks for prepared ARCADE patients
+
+```bash
+python3 demo-app/scripts/precompute_sam_vmnet_masks.py \
+  --data-root demo-app/data/patients \
+  --checkpoint SAM_VMNet/pre_trained_weights/best-epoch142-loss0.3230.pth
+```
+
+Use `--dry-run` to inspect eligible patients and `--overwrite` to regenerate masks.
 
 ## API Endpoints
 
 - `GET /api/health`
 - `GET /api/models`
-- `GET /api/patients`
+- `POST /api/models/select`
+- `GET /api/patients` (filtered to active model dataset)
 - `GET /api/patients/{patient_id}/frames/{frame_index}`
+- `GET /api/patients/{patient_id}/frames/{frame_index}/masks/{source}` where `{source}` is `prediction` or `ground_truth`
 - `POST /api/infer/frame`
 - `POST /api/infer/prefetch`
 - `GET /api/labels/{patient_id}/{frame_index}`
+- `PUT /api/labels/{patient_id}/{frame_index}` (bbox datasets only; mask datasets are read-only)
