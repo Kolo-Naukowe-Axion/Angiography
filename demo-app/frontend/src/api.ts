@@ -32,8 +32,22 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+export function resolveApiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+  if (path.startsWith("/")) {
+    return `${API_BASE}${path}`;
+  }
+  return `${API_BASE}/${path}`;
+}
+
 export function getFrameUrl(patientId: string, frameIndex: number): string {
   return `${API_BASE}/api/patients/${patientId}/frames/${frameIndex}`;
+}
+
+export function getMaskUrl(patientId: string, frameIndex: number, source: "prediction" | "ground_truth"): string {
+  return `${API_BASE}/api/patients/${patientId}/frames/${frameIndex}/masks/${source}`;
 }
 
 export function getHealth(): Promise<HealthResponse> {

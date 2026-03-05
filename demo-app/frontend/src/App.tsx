@@ -8,17 +8,20 @@ import {
   getPatients,
   inferFrame,
   prefetchFrames,
+  resolveApiUrl,
   saveLabels,
   selectModel,
 } from "./api";
-import { computeFrameMetrics } from "./metrics";
-import type { MetricValue } from "./metrics";
+import { computeFrameMetrics, computeMaskMetricsFromUrls } from "./metrics";
+import type { MaskMetrics, MetricValue } from "./metrics";
 import type {
   Box,
   GroundTruthBoxInput,
   HealthResponse,
   InferFrameResponse,
+  LabelType,
   LabelsResponse,
+  MaskPayload,
   ModelCard,
   PatientSummary,
 } from "./types";
@@ -34,7 +37,9 @@ type Dimensions = {
 
 type FrameLabels = {
   hasLabels: boolean;
+  labelType: LabelType;
   boxes: Box[];
+  mask: MaskPayload | null;
 };
 
 type DraftBox = {
@@ -52,8 +57,15 @@ type DisplayRect = {
   scale: number;
 };
 
-function emptyFrameLabels(): FrameLabels {
-  return { hasLabels: false, boxes: [] };
+function emptyFrameLabels(labelType: LabelType = "bbox"): FrameLabels {
+  return { hasLabels: false, labelType, boxes: [], mask: null };
+}
+
+function emptyMaskMetrics(reason = "No labels available"): MaskMetrics {
+  return {
+    iou: { status: "na", reason },
+    dice: { status: "na", reason },
+  };
 }
 
 function formatMetricValue(metric: MetricValue): string {
@@ -107,11 +119,13 @@ function App() {
 
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [inference, setInference] = useState<InferFrameResponse | null>(null);
-  const [frameLabels, setFrameLabels] = useState<FrameLabels>(emptyFrameLabels);
+  const [frameLabels, setFrameLabels] = useState<FrameLabels>(emptyFrameLabels());
   const [editableBoxes, setEditableBoxes] = useState<Box[]>([]);
   const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null);
   const [draftBox, setDraftBox] = useState<DraftBox | null>(null);
   const [activePointerId, setActivePointerId] = useState<number | null>(null);
+
+  const [maskMetrics, setMaskMetrics] = useState<MaskMetrics>(emptyMaskMetrics());
 
   const [error, setError] = useState<string>("");
   const [isSwitchingModel, setIsSwitchingModel] = useState(false);
@@ -127,14 +141,18 @@ function App() {
     () => patients.find((patient) => patient.id === selectedPatientId) ?? null,
     [patients, selectedPatientId],
   );
-  const activeModelId = useMemo(() => models.find((model) => model.active)?.id ?? "", [models]);
+  const activeModel = useMemo(() => models.find((model) => model.active) ?? null, [models]);
+  const activeModelId = activeModel?.id ?? "";
 
   const thresholdBoxes = useMemo(
     () => (inference?.boxes ?? []).filter((box) => box.confidence >= threshold),
     [inference, threshold],
   );
 
-  const stenosisDetected = thresholdBoxes.length > 0;
+  const isMaskMode = (activeModel?.outputType ?? "bbox") === "mask" || inference?.outputType === "mask";
+  const supportsBBoxAnnotation = !!selectedPatient && !isMaskMode && selectedPatient.labelType === "bbox";
+
+  const stenosisDetected = inference?.stenosisDetected ?? false;
   const maxFrameIndex = selectedPatient ? Math.max(0, selectedPatient.frameCount - 1) : 0;
   const isAtEnd = selectedPatient !== null && frameIndex >= maxFrameIndex;
   const isInteractionLocked = isDirty || isSaving;
@@ -200,10 +218,36 @@ function App() {
     [groundTruthBoxes, inference, frameLabels.hasLabels],
   );
 
+  const predictionMaskUrl = useMemo(() => {
+    if (!selectedPatient || inference?.outputType !== "mask") {
+      return "";
+    }
+    if (inference.mask?.url) {
+      return resolveApiUrl(inference.mask.url);
+    }
+    return resolveApiUrl(`/api/patients/${selectedPatient.id}/frames/${frameIndex}/masks/prediction`);
+  }, [selectedPatient, inference, frameIndex]);
+
+  const groundTruthMaskUrl = useMemo(() => {
+    if (!selectedPatient || frameLabels.labelType !== "mask" || !frameLabels.hasLabels) {
+      return "";
+    }
+    if (frameLabels.mask?.url) {
+      return resolveApiUrl(frameLabels.mask.url);
+    }
+    return resolveApiUrl(`/api/patients/${selectedPatient.id}/frames/${frameIndex}/masks/ground_truth`);
+  }, [selectedPatient, frameLabels, frameIndex]);
+
   const frameStateLabel = stenosisDetected ? "Stenosis detected" : "No stenosis detected";
   const inferenceMsLabel = inference ? `${inference.inferenceMs.toFixed(1)} ms` : "-";
   const sourceLabel = inference ? (inference.cached ? "cache" : "live") : "-";
-  const metricsUnavailableReason = selectedPatient && frameMetrics.iou.status === "na" ? frameMetrics.iou.reason : "";
+
+  const metricsUnavailableReason = useMemo(() => {
+    if (isMaskMode) {
+      return maskMetrics.iou.status === "na" ? maskMetrics.iou.reason : "";
+    }
+    return frameMetrics.iou.status === "na" ? frameMetrics.iou.reason : "";
+  }, [isMaskMode, maskMetrics.iou, frameMetrics.iou]);
 
   const shouldShowGroundTruth = isAnnotating || showGroundTruth;
 
@@ -237,10 +281,11 @@ function App() {
     if (isInteractionLocked || patientId === selectedPatientId) {
       return;
     }
+    const next = patients.find((patient) => patient.id === patientId);
     setSelectedPatientId(patientId);
     setFrameIndex(0);
     setInference(null);
-    setFrameLabels(emptyFrameLabels());
+    setFrameLabels(emptyFrameLabels(next?.labelType ?? "bbox"));
     setEditableBoxes([]);
     setSelectedBoxIndex(null);
     setDraftBox(null);
@@ -256,11 +301,25 @@ function App() {
 
     setIsSwitchingModel(true);
     try {
-      const updatedModels = await selectModel(modelId);
+      const [updatedModels, updatedPatients, nextHealth] = await Promise.all([selectModel(modelId), getPatients(), getHealth()]);
       setModels(updatedModels);
-      setHealth(await getHealth());
+      setPatients(updatedPatients);
+      setHealth(nextHealth);
       setInference(null);
+      setFrameLabels(emptyFrameLabels(updatedPatients[0]?.labelType ?? "bbox"));
+      setEditableBoxes([]);
+      setSelectedBoxIndex(null);
+      setDraftBox(null);
+      setIsDirty(false);
       setError("");
+      setFrameIndex(0);
+      setIsPlaying(false);
+      setSelectedPatientId((prev) => {
+        if (updatedPatients.some((patient) => patient.id === prev)) {
+          return prev;
+        }
+        return updatedPatients[0]?.id ?? "";
+      });
     } catch (switchError) {
       setError(switchError instanceof Error ? switchError.message : "Failed to switch model.");
     } finally {
@@ -269,7 +328,7 @@ function App() {
   };
 
   const handleDeleteSelected = () => {
-    if (selectedBoxIndex === null) {
+    if (selectedBoxIndex === null || !supportsBBoxAnnotation) {
       return;
     }
     setEditableBoxes((prev) => prev.filter((_, index) => index !== selectedBoxIndex));
@@ -278,6 +337,9 @@ function App() {
   };
 
   const handleDiscard = () => {
+    if (!supportsBBoxAnnotation) {
+      return;
+    }
     setEditableBoxes(frameLabels.boxes);
     setSelectedBoxIndex(null);
     setDraftBox(null);
@@ -286,7 +348,7 @@ function App() {
   };
 
   const handleSave = async () => {
-    if (!selectedPatient || isSaving) {
+    if (!selectedPatient || isSaving || !supportsBBoxAnnotation) {
       return;
     }
 
@@ -295,7 +357,9 @@ function App() {
       const response = await saveLabels(selectedPatient.id, frameIndex, toGroundTruthInput(editableBoxes));
       const nextLabels = {
         hasLabels: response.hasLabels,
+        labelType: response.labelType,
         boxes: response.boxes ?? [],
+        mask: response.mask,
       };
       setFrameLabels(nextLabels);
       setEditableBoxes(nextLabels.boxes);
@@ -318,11 +382,7 @@ function App() {
 
     async function bootstrap() {
       try {
-        const [modelsData, patientsData, healthData] = await Promise.all([
-          getModels(),
-          getPatients(),
-          getHealth(),
-        ]);
+        const [modelsData, patientsData, healthData] = await Promise.all([getModels(), getPatients(), getHealth()]);
         if (canceled) {
           return;
         }
@@ -332,6 +392,7 @@ function App() {
 
         if (patientsData.length > 0) {
           setSelectedPatientId(patientsData[0].id);
+          setFrameLabels(emptyFrameLabels(patientsData[0].labelType));
         }
       } catch (loadError) {
         if (!canceled) {
@@ -362,13 +423,12 @@ function App() {
               patientId: patient.id,
               frameIndex,
               hasLabels: false,
+              labelType: patient.labelType,
               boxes: [],
+              mask: null,
             });
 
-        const [nextInference, nextLabels] = await Promise.all([
-          inferFrame(patient.id, frameIndex),
-          labelsPromise,
-        ]);
+        const [nextInference, nextLabels] = await Promise.all([inferFrame(patient.id, frameIndex), labelsPromise]);
 
         if (canceled) {
           return;
@@ -378,10 +438,12 @@ function App() {
         setInference(nextInference);
         const nextFrameLabels = {
           hasLabels: nextLabels.hasLabels,
+          labelType: nextLabels.labelType,
           boxes: nextLabels.boxes ?? [],
+          mask: nextLabels.mask,
         };
         setFrameLabels(nextFrameLabels);
-        setEditableBoxes(nextFrameLabels.boxes);
+        setEditableBoxes(nextLabels.labelType === "bbox" ? nextFrameLabels.boxes : []);
         setSelectedBoxIndex(null);
         setDraftBox(null);
         setActivePointerId(null);
@@ -406,6 +468,39 @@ function App() {
       canceled = true;
     };
   }, [activeModelId, frameIndex, maxFrameIndex, selectedPatient]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    async function computeMaskMetricsIfNeeded() {
+      if (!isMaskMode) {
+        setMaskMetrics(emptyMaskMetrics("Mask metrics available only in mask mode"));
+        return;
+      }
+      if (!predictionMaskUrl || !groundTruthMaskUrl || !frameLabels.hasLabels) {
+        setMaskMetrics(emptyMaskMetrics("No labels available"));
+        return;
+      }
+
+      try {
+        const next = await computeMaskMetricsFromUrls(predictionMaskUrl, groundTruthMaskUrl);
+        if (!canceled) {
+          setMaskMetrics(next);
+        }
+      } catch (metricError) {
+        if (!canceled) {
+          const reason = metricError instanceof Error ? metricError.message : "Failed to compute mask metrics";
+          setMaskMetrics(emptyMaskMetrics(reason));
+        }
+      }
+    }
+
+    void computeMaskMetricsIfNeeded();
+
+    return () => {
+      canceled = true;
+    };
+  }, [isMaskMode, predictionMaskUrl, groundTruthMaskUrl, frameLabels.hasLabels]);
 
   useEffect(() => {
     if (!selectedPatient || !isPlaying || isInteractionLocked) {
@@ -454,6 +549,17 @@ function App() {
     }
   }, [isInteractionLocked, isPlaying]);
 
+  useEffect(() => {
+    if (supportsBBoxAnnotation) {
+      return;
+    }
+    setIsAnnotating(false);
+    setSelectedBoxIndex(null);
+    setDraftBox(null);
+    setActivePointerId(null);
+    setIsDirty(false);
+  }, [supportsBBoxAnnotation]);
+
   return (
     <div className="app-shell">
       <div className="ambient-gradient" />
@@ -468,6 +574,7 @@ function App() {
           <span className="chip-label">Device</span>
           <strong>{health?.device ?? "-"}</strong>
           <span className="chip-meta">Cache {health?.cacheEntries ?? 0}/{health?.cacheSize ?? 0}</span>
+          <span className="chip-meta">Dataset {activeModel?.datasetId ?? "-"}</span>
         </div>
       </header>
 
@@ -512,6 +619,11 @@ function App() {
                       <span className={`state-pill ${model.status}`}>{model.status.replace("_", " ")}</span>
                     </div>
                     <p>{model.notes}</p>
+                    <div className="model-meta-row">
+                      <span>{model.datasetId}</span>
+                      <span>{model.outputType}</span>
+                      <span>{model.inferenceMode}</span>
+                    </div>
                     {model.active ? <span className="disabled-note">Active model</span> : null}
                     {!model.active && model.status !== "ready" ? (
                       <span className="disabled-note">Unavailable</span>
@@ -534,7 +646,7 @@ function App() {
           <section className="rail-card patients-card">
             <h2>Patients</h2>
             <div className="patient-list">
-              {patients.length === 0 ? <p className="empty-text">No curated data loaded.</p> : null}
+              {patients.length === 0 ? <p className="empty-text">No compatible data loaded for active model.</p> : null}
               {patients.map((patient) => (
                 <button
                   key={patient.id}
@@ -545,6 +657,7 @@ function App() {
                 >
                   <span className="patient-name">{patient.displayName}</span>
                   <span className="patient-meta">{patient.frameCount} frames</span>
+                  <span className="patient-badges">{patient.datasetId} · {patient.labelType}</span>
                 </button>
               ))}
             </div>
@@ -565,15 +678,27 @@ function App() {
                 <span>
                   Source <strong>{sourceLabel}</strong>
                 </span>
+                <span>
+                  Mode <strong>{activeModel?.outputType ?? "-"}</strong>
+                </span>
               </div>
               <div className="quality-metrics">
                 <div className="metric-chip">
                   <span className="metric-label">IoU (frame)</span>
-                  <strong>{formatMetricValue(frameMetrics.iou)}</strong>
+                  <strong>{formatMetricValue(isMaskMode ? maskMetrics.iou : frameMetrics.iou)}</strong>
                 </div>
+                {isMaskMode ? (
+                  <div className="metric-chip">
+                    <span className="metric-label">Dice (frame)</span>
+                    <strong>{formatMetricValue(maskMetrics.dice)}</strong>
+                  </div>
+                ) : null}
               </div>
               {metricsUnavailableReason ? <span className="metrics-note">{metricsUnavailableReason}</span> : null}
               {isDirty ? <span className="metrics-note dirty-note">Unsaved annotation changes</span> : null}
+              {!supportsBBoxAnnotation ? (
+                <span className="metrics-note readonly-note">Mask labels are read-only for this model/dataset.</span>
+              ) : null}
             </div>
           </div>
 
@@ -599,10 +724,17 @@ function App() {
               <div className="empty-stage">Load patient data to start the demo.</div>
             )}
 
+            {isMaskMode && predictionMaskUrl ? (
+              <img className="mask-overlay prediction-mask" src={predictionMaskUrl} alt="Prediction mask" />
+            ) : null}
+            {isMaskMode && shouldShowGroundTruth && groundTruthMaskUrl ? (
+              <img className="mask-overlay ground-truth-mask" src={groundTruthMaskUrl} alt="Ground-truth mask" />
+            ) : null}
+
             <div
-              className={`overlay-layer ${isAnnotating ? "annotation-enabled" : ""}`}
+              className={`overlay-layer ${isAnnotating && supportsBBoxAnnotation ? "annotation-enabled" : ""}`}
               onPointerDown={(event) => {
-                if (!isAnnotating || isSaving || !selectedPatient || event.button !== 0) {
+                if (!isAnnotating || !supportsBBoxAnnotation || isSaving || !selectedPatient || event.button !== 0) {
                   return;
                 }
                 const point = toNaturalPoint(event.clientX, event.clientY, false);
@@ -620,7 +752,7 @@ function App() {
                 });
               }}
               onPointerMove={(event) => {
-                if (activePointerId !== event.pointerId || !draftBox) {
+                if (activePointerId !== event.pointerId || !draftBox || !supportsBBoxAnnotation) {
                   return;
                 }
                 const point = toNaturalPoint(event.clientX, event.clientY, true);
@@ -639,7 +771,7 @@ function App() {
                 });
               }}
               onPointerUp={(event) => {
-                if (activePointerId !== event.pointerId || !draftBox) {
+                if (activePointerId !== event.pointerId || !draftBox || !supportsBBoxAnnotation) {
                   return;
                 }
                 const point = toNaturalPoint(event.clientX, event.clientY, true);
@@ -676,21 +808,23 @@ function App() {
                 setActivePointerId(null);
               }}
             >
-              {thresholdBoxes.map((box, index) => (
-                <div
-                  key={`pred-${index}-${box.x1}-${box.y1}`}
-                  className="bbox prediction"
-                  style={{
-                    left: `${displayRect.offsetX + box.x1 * displayRect.scale}px`,
-                    top: `${displayRect.offsetY + box.y1 * displayRect.scale}px`,
-                    width: `${(box.x2 - box.x1) * displayRect.scale}px`,
-                    height: `${(box.y2 - box.y1) * displayRect.scale}px`,
-                  }}
-                >
-                  <span>{Math.round(box.confidence * 100)}%</span>
-                </div>
-              ))}
-              {shouldShowGroundTruth
+              {inference?.outputType === "bbox"
+                ? thresholdBoxes.map((box, index) => (
+                    <div
+                      key={`pred-${index}-${box.x1}-${box.y1}`}
+                      className="bbox prediction"
+                      style={{
+                        left: `${displayRect.offsetX + box.x1 * displayRect.scale}px`,
+                        top: `${displayRect.offsetY + box.y1 * displayRect.scale}px`,
+                        width: `${(box.x2 - box.x1) * displayRect.scale}px`,
+                        height: `${(box.y2 - box.y1) * displayRect.scale}px`,
+                      }}
+                    >
+                      <span>{Math.round(box.confidence * 100)}%</span>
+                    </div>
+                  ))
+                : null}
+              {shouldShowGroundTruth && frameLabels.labelType === "bbox"
                 ? groundTruthBoxes.map((box, index) => (
                     <div
                       key={`gt-${index}-${box.x1}-${box.y1}`}
@@ -702,7 +836,7 @@ function App() {
                         height: `${(box.y2 - box.y1) * displayRect.scale}px`,
                       }}
                       onPointerDown={(event) => {
-                        if (!isAnnotating) {
+                        if (!isAnnotating || !supportsBBoxAnnotation) {
                           return;
                         }
                         event.stopPropagation();
@@ -713,7 +847,7 @@ function App() {
                     </div>
                   ))
                 : null}
-              {isAnnotating && draftRenderBox ? (
+              {isAnnotating && supportsBBoxAnnotation && draftRenderBox ? (
                 <div
                   className="bbox draft-box"
                   style={{
@@ -727,6 +861,15 @@ function App() {
                 </div>
               ) : null}
             </div>
+          </div>
+
+          <div className="mask-legend">
+            {isMaskMode ? (
+              <>
+                <span className="legend-item prediction">Prediction mask</span>
+                <span className="legend-item ground-truth">Ground-truth mask</span>
+              </>
+            ) : null}
           </div>
 
           <div className="control-deck">
@@ -745,21 +888,25 @@ function App() {
                     setActivePointerId(null);
                   }
                 }}
-                disabled={!selectedPatient || isSaving}
+                disabled={!selectedPatient || isSaving || !supportsBBoxAnnotation}
               >
                 {isAnnotating ? "Exit annotation" : "Annotate frame"}
               </button>
               <button
                 type="button"
                 onClick={handleDeleteSelected}
-                disabled={!isAnnotating || selectedBoxIndex === null || isSaving}
+                disabled={!isAnnotating || selectedBoxIndex === null || isSaving || !supportsBBoxAnnotation}
               >
                 Delete selected
               </button>
-              <button type="button" onClick={handleDiscard} disabled={!isDirty || isSaving}>
+              <button type="button" onClick={handleDiscard} disabled={!isDirty || isSaving || !supportsBBoxAnnotation}>
                 Discard edits
               </button>
-              <button type="button" onClick={() => void handleSave()} disabled={!isDirty || isSaving || !selectedPatient}>
+              <button
+                type="button"
+                onClick={() => void handleSave()}
+                disabled={!isDirty || isSaving || !selectedPatient || !supportsBBoxAnnotation}
+              >
                 {isSaving ? "Saving..." : "Save frame labels"}
               </button>
             </div>
@@ -826,7 +973,11 @@ function App() {
                   type="checkbox"
                   checked={showGroundTruth}
                   onChange={(event) => setShowGroundTruth(event.target.checked)}
-                  disabled={!selectedPatient?.hasLabels && !isAnnotating && !isDirty}
+                  disabled={
+                    isMaskMode
+                      ? !frameLabels.hasLabels
+                      : !selectedPatient?.hasLabels && !isAnnotating && !isDirty
+                  }
                 />
                 Ground-truth overlay
               </label>
