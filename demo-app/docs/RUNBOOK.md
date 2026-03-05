@@ -1,34 +1,37 @@
 # Angiography Demo App Runbook (macOS)
 
-## 1. Repository and Branch
+## 1. Start the Demo
+
+From `Angiography/`:
 
 ```bash
-cd /Users/iwosmura/projects/angio-demo/Angiography
-git checkout demo/macos-player
+./demo-app/scripts/run_demo.sh start
 ```
 
-## 2. Backend Setup (Python 3.11 recommended)
+That single command will:
+
+- Create/fix the backend virtualenv.
+- Install backend/frontend dependencies when missing or stale.
+- Validate data and model prerequisites.
+- Start backend + frontend and print ready URLs.
+
+Open `http://127.0.0.1:5173`.
+
+## 2. Health / Diagnostics Commands
 
 ```bash
-cd demo-app/backend
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+./demo-app/scripts/run_demo.sh doctor
+./demo-app/scripts/run_demo.sh status
+./demo-app/scripts/run_demo.sh stop
+./demo-app/scripts/run_demo.sh restart
+./demo-app/scripts/run_demo.sh bootstrap
 ```
 
-## 3. Frontend Setup
+## 3. Data Preparation (Only If Needed)
+
+If your curated data is not already prepared:
 
 ```bash
-cd /Users/iwosmura/projects/angio-demo/Angiography/demo-app/frontend
-npm install
-```
-
-## 4. Prepare Curated Patient Data
-
-Place source patient folders locally, then run:
-
-```bash
-cd /Users/iwosmura/projects/angio-demo/Angiography
 python3 demo-app/scripts/prepare_patient_data.py \
   --source-root /ABSOLUTE/PATH/TO/CURATED_MENDELEY_SUBSET \
   --output-root demo-app/data/patients \
@@ -36,19 +39,13 @@ python3 demo-app/scripts/prepare_patient_data.py \
   --max-frames-per-patient 300
 ```
 
-This writes `demo-app/data/patients/manifest.json`.
-
-## 5. Start Demo
+Or let `start` auto-prepare by setting:
 
 ```bash
-cd /Users/iwosmura/projects/angio-demo/Angiography
-chmod +x demo-app/scripts/run_demo.sh
-demo-app/scripts/run_demo.sh
+DEMO_SOURCE_ROOT=/ABSOLUTE/PATH/TO/CURATED_MENDELEY_SUBSET ./demo-app/scripts/run_demo.sh start
 ```
 
-Open `http://127.0.0.1:5173`.
-
-## 6. API Smoke Checks
+## 4. API Smoke Checks
 
 ```bash
 curl http://127.0.0.1:8000/api/health
@@ -56,25 +53,20 @@ curl http://127.0.0.1:8000/api/models
 curl http://127.0.0.1:8000/api/patients
 ```
 
-Expected with prepared data: `/api/patients` returns at least one patient (for example `dataset` with `frameCount` > 0).
+## 5. Environment Overrides
 
-If the UI shows `Failed to fetch`, verify:
+- `DEMO_HOST` (default `127.0.0.1`)
+- `DEMO_BACKEND_PORT` (default `8000`)
+- `DEMO_FRONTEND_PORT` (default `5173`)
+- `DEMO_API_HOST` (optional frontend API hostname; useful when `DEMO_HOST=0.0.0.0`)
+- `DEMO_DATA_DIR` (default `demo-app/data/patients`)
+- `DEMO_MODEL_PATH` (default `YOLO26s/weights/best.pt`)
+- `DEMO_USE_MOCK_MODEL=1` to force mock inference
+- `DEMO_AUTO_SETUP=0` to disable auto-install and run checks only
+- `DEMO_PYTHON_BIN=/path/to/python3.11` to pin Python interpreter
 
-```bash
-lsof -iTCP:8000 -sTCP:LISTEN -n -P
-curl -i http://127.0.0.1:8000/api/health
-```
+## 6. Notes
 
-Also confirm frontend API base is correct in `demo-app/frontend/.env.local`:
-
-```bash
-VITE_API_BASE_URL=http://127.0.0.1:8000
-```
-
-## 7. Notes
-
-- YOLO26s weights are expected at `YOLO26s/weights/best.pt`.
-- YOLO26n is also available at `YOLO26n/weights/best.pt` (set `DEMO_MODEL_PATH` to switch).
-- Data under `demo-app/data/patients/` is ignored by git except `manifest.json`.
-- Default runtime remains YOLO26s unless `DEMO_MODEL_PATH` is overridden.
-- The model rail supports switching between YOLO26s and YOLO26n at runtime via `/api/models/select`.
+- Default model path is `YOLO26s/weights/best.pt`.
+- If the model path is missing and `DEMO_AUTO_USE_MOCK_MODEL=1` (default), launcher falls back to mock model mode.
+- Frontend API base is set automatically by the launcher for dev mode.
