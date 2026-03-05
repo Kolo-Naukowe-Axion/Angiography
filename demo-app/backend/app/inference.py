@@ -7,7 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .schemas import Box, InferFrameResponse
+import numpy as np
+from PIL import Image
+
+from .data import PatientStore
+from .schemas import Box, InferFrameResponse, MaskPayload
 
 
 def select_device() -> str:
@@ -164,7 +168,10 @@ class YOLOInferenceService:
         response = InferFrameResponse(
             patientId=patient_id,
             frameIndex=frame_index,
+            outputType="bbox",
             boxes=boxes,
+            mask=None,
+            stenosisDetected=bool(boxes),
             cached=False,
             inferenceMs=round(inference_ms, 3),
         )
@@ -212,6 +219,135 @@ class YOLOInferenceService:
         }
 
 
+class PrecomputedMaskInferenceService:
+    def __init__(
+        self,
+        model_id: str,
+        model_path: Path,
+        patient_store: PatientStore,
+        cache_size: int,
+        prefetch_queue_size: int,
+    ):
+        self.model_id = model_id
+        self.model_path = model_path
+        self.patient_store = patient_store
+        self.cache = LRUFrameCache(cache_size)
+        self._prefetch_queue: asyncio.Queue[tuple[str, int, Path] | None] = asyncio.Queue(maxsize=prefetch_queue_size)
+        self._prefetch_pending: set[tuple[str, int]] = set()
+        self._worker_task: asyncio.Task[None] | None = None
+
+    @classmethod
+    async def create(
+        cls,
+        model_id: str,
+        model_path: Path,
+        patient_store: PatientStore,
+        cache_size: int,
+        prefetch_queue_size: int,
+    ) -> "PrecomputedMaskInferenceService":
+        return cls(
+            model_id=model_id,
+            model_path=model_path,
+            patient_store=patient_store,
+            cache_size=cache_size,
+            prefetch_queue_size=prefetch_queue_size,
+        )
+
+    async def start(self) -> None:
+        if self._worker_task is None:
+            self._worker_task = asyncio.create_task(self._prefetch_worker(), name="prefetch-worker-mask")
+
+    async def stop(self) -> None:
+        if self._worker_task is not None:
+            await self._prefetch_queue.put(None)
+            await self._worker_task
+            self._worker_task = None
+
+    def _build_mask_payload(self, patient_id: str, frame_index: int, mask_path: Path) -> MaskPayload:
+        with Image.open(mask_path) as mask_image:
+            mask_gray = np.array(mask_image.convert("L"), dtype=np.uint8)
+            width, height = mask_image.size
+
+        positive_pixel_ratio = float(np.count_nonzero(mask_gray > 127) / max(1, mask_gray.size))
+        return MaskPayload(
+            url=f"/api/patients/{patient_id}/frames/{frame_index}/masks/prediction",
+            width=width,
+            height=height,
+            positivePixelRatio=round(positive_pixel_ratio, 6),
+        )
+
+    async def infer_frame(self, patient_id: str, frame_index: int, frame_path: Path) -> InferFrameResponse:
+        cache_key = (patient_id, frame_index)
+        cached = self.cache.get(cache_key)
+        if cached:
+            return cached.response.model_copy(update={"cached": True})
+
+        start = time.perf_counter()
+        mask_path = self.patient_store.get_mask_path(
+            patient_id,
+            frame_index,
+            source="prediction",
+            model_id=self.model_id,
+        )
+        if mask_path is None or not mask_path.exists():
+            raise FileNotFoundError(f"Prediction mask not found for {patient_id} frame {frame_index} ({self.model_id})")
+
+        payload = await asyncio.to_thread(self._build_mask_payload, patient_id, frame_index, mask_path)
+        inference_ms = (time.perf_counter() - start) * 1000.0
+        response = InferFrameResponse(
+            patientId=patient_id,
+            frameIndex=frame_index,
+            outputType="mask",
+            boxes=[],
+            mask=payload,
+            stenosisDetected=payload.positivePixelRatio > 0,
+            cached=False,
+            inferenceMs=round(inference_ms, 3),
+        )
+        self.cache.set(cache_key, CachedInference(response=response))
+        return response
+
+    async def queue_prefetch(self, patient_id: str, frame_index: int, frame_path: Path) -> bool:
+        key = (patient_id, frame_index)
+        if self.cache.get(key):
+            return False
+        if key in self._prefetch_pending:
+            return False
+        if self._prefetch_queue.full():
+            return False
+        self._prefetch_pending.add(key)
+        await self._prefetch_queue.put((patient_id, frame_index, frame_path))
+        return True
+
+    async def _prefetch_worker(self) -> None:
+        while True:
+            item = await self._prefetch_queue.get()
+            if item is None:
+                self._prefetch_queue.task_done()
+                return
+
+            patient_id, frame_index, frame_path = item
+            try:
+                await self.infer_frame(patient_id, frame_index, frame_path)
+            except Exception:
+                pass
+            finally:
+                self._prefetch_pending.discard((patient_id, frame_index))
+                self._prefetch_queue.task_done()
+
+    def health(self) -> dict[str, Any]:
+        cache_size, cache_entries = self.cache.stats()
+        return {
+            "modelLoaded": True,
+            "modelPath": str(self.model_path),
+            "device": "cpu",
+            "cacheSize": cache_size,
+            "cacheEntries": cache_entries,
+            "prefetchQueueSize": self._prefetch_queue.maxsize,
+            "prefetchQueued": self._prefetch_queue.qsize(),
+        }
+
+
 class MockInferenceService(YOLOInferenceService):
     @classmethod
     async def create(
@@ -248,7 +384,10 @@ class MockInferenceService(YOLOInferenceService):
         response = InferFrameResponse(
             patientId=patient_id,
             frameIndex=frame_index,
+            outputType="bbox",
             boxes=[box],
+            mask=None,
+            stenosisDetected=True,
             cached=False,
             inferenceMs=3.0,
         )

@@ -357,6 +357,40 @@ Fix by running:
   $SELECTED_PYTHON \"$APP_DIR/scripts/prepare_patient_data.py\" --source-root /ABS/PATH/TO/CURATED_DATA --output-root \"$DATA_DIR\""
 }
 
+validate_sam_precomputed_readiness() {
+  local readiness_output
+
+  if readiness_output="$(
+    cd "$BACKEND_DIR"
+    DEMO_DATA_DIR="$DATA_DIR" "$BACKEND_PYTHON" - <<'PY' 2>&1
+from pathlib import Path
+import os
+
+from app.data import ManifestValidationError, PatientStore
+
+data_dir = Path(os.environ["DEMO_DATA_DIR"]).resolve()
+try:
+    store = PatientStore(data_dir)
+except ManifestValidationError as error:
+    print(f"unable to evaluate (manifest invalid): {error}")
+    raise SystemExit(1)
+
+ready, reason = store.is_model_prediction_ready("sam_vmnet_arcade", "arcade")
+if ready:
+    print("ready")
+else:
+    print(reason or "not ready")
+    raise SystemExit(1)
+PY
+  )"; then
+    echo "SAM-VMNet precomputed masks: ready ($readiness_output)"
+    return
+  fi
+
+  echo "SAM-VMNet precomputed masks: unavailable ($readiness_output)"
+  echo "  Tip: run demo-app/scripts/prepare_arcade_data.py + demo-app/scripts/precompute_sam_vmnet_masks.py"
+}
+
 ensure_prereqs() {
   local mode="$1"
 
@@ -365,6 +399,7 @@ ensure_prereqs() {
   ensure_frontend_env "$mode"
   validate_model_path
   validate_data_manifest "$mode"
+  validate_sam_precomputed_readiness
 }
 
 bootstrap_demo() {

@@ -7,18 +7,22 @@ def test_get_models(client):
     response = client.get("/api/models")
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 2
-    assert {card["id"] for card in payload} == {"yolo26s", "yolo26n"}
-    assert all(card["status"] == "ready" for card in payload)
+    assert len(payload) == 3
+    assert {card["id"] for card in payload} == {"yolo26s", "yolo26n", "sam_vmnet_arcade"}
     active_ids = [card["id"] for card in payload if card["active"]]
     assert active_ids == ["yolo26s"]
+
+    by_id = {card["id"]: card for card in payload}
+    assert by_id["sam_vmnet_arcade"]["datasetId"] == "arcade"
+    assert by_id["sam_vmnet_arcade"]["outputType"] == "mask"
+    assert by_id["sam_vmnet_arcade"]["inferenceMode"] == "precomputed"
 
 
 def test_select_model_switches_active_card(client):
     response = client.post("/api/models/select", json={"modelId": "yolo26n"})
     assert response.status_code == 200
     payload = response.json()
-    assert len(payload) == 2
+    assert len(payload) == 3
     active_ids = [card["id"] for card in payload if card["active"]]
     assert active_ids == ["yolo26n"]
 
@@ -27,7 +31,7 @@ def test_select_model_switches_active_card(client):
     assert "YOLO26n/weights/best.pt" in health.json()["modelPath"].replace("\\", "/")
 
 
-def test_get_patients(client):
+def test_get_patients_filtered_to_active_dataset(client):
     response = client.get("/api/patients")
     assert response.status_code == 200
     payload = response.json()
@@ -35,18 +39,45 @@ def test_get_patients(client):
     by_id = {patient["id"]: patient for patient in payload}
     assert by_id["patient_001"]["frameCount"] == 3
     assert by_id["patient_001"]["hasLabels"] is True
+    assert by_id["patient_001"]["datasetId"] == "mendeley"
     assert by_id["patient_002"]["frameCount"] == 2
     assert by_id["patient_002"]["hasLabels"] is False
+
+
+def test_selecting_sam_vmnet_filters_patients_to_arcade(client):
+    select = client.post("/api/models/select", json={"modelId": "sam_vmnet_arcade"})
+    assert select.status_code == 200
+
+    patients = client.get("/api/patients")
+    assert patients.status_code == 200
+    payload = patients.json()
+    assert [patient["id"] for patient in payload] == ["arcade_patient_001"]
+    assert payload[0]["datasetId"] == "arcade"
+    assert payload[0]["labelType"] == "mask"
 
 
 def test_infer_frame_cache_behavior(client):
     first = client.post("/api/infer/frame", json={"patientId": "patient_001", "frameIndex": 0})
     assert first.status_code == 200
     assert first.json()["cached"] is False
+    assert first.json()["outputType"] == "bbox"
 
     second = client.post("/api/infer/frame", json={"patientId": "patient_001", "frameIndex": 0})
     assert second.status_code == 200
     assert second.json()["cached"] is True
+
+
+def test_sam_mask_inference_response(client):
+    select = client.post("/api/models/select", json={"modelId": "sam_vmnet_arcade"})
+    assert select.status_code == 200
+
+    response = client.post("/api/infer/frame", json={"patientId": "arcade_patient_001", "frameIndex": 0})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["outputType"] == "mask"
+    assert payload["boxes"] == []
+    assert payload["mask"] is not None
+    assert payload["mask"]["url"].endswith("/api/patients/arcade_patient_001/frames/0/masks/prediction")
 
 
 def test_prefetch_updates_queue(client):
@@ -60,11 +91,12 @@ def test_prefetch_updates_queue(client):
     assert payload["queued"] >= 0
 
 
-def test_get_labels(client):
+def test_get_labels_for_bbox_patient(client):
     response = client.get("/api/labels/patient_001/0")
     assert response.status_code == 200
     payload = response.json()
     assert payload["hasLabels"] is True
+    assert payload["labelType"] == "bbox"
     assert len(payload["boxes"]) == 1
 
 
@@ -73,7 +105,31 @@ def test_get_labels_missing_label_file_returns_empty_frame_labels(client):
     assert response.status_code == 200
     payload = response.json()
     assert payload["hasLabels"] is False
+    assert payload["labelType"] == "bbox"
     assert payload["boxes"] == []
+
+
+def test_get_labels_mask_patient_returns_mask_payload(client):
+    client.post("/api/models/select", json={"modelId": "sam_vmnet_arcade"})
+    response = client.get("/api/labels/arcade_patient_001/0")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["hasLabels"] is True
+    assert payload["labelType"] == "mask"
+    assert payload["mask"] is not None
+    assert payload["mask"]["url"].endswith("/api/patients/arcade_patient_001/frames/0/masks/ground_truth")
+
+
+def test_get_mask_asset_prediction_and_ground_truth(client):
+    client.post("/api/models/select", json={"modelId": "sam_vmnet_arcade"})
+
+    prediction = client.get("/api/patients/arcade_patient_001/frames/0/masks/prediction")
+    assert prediction.status_code == 200
+    assert prediction.headers["content-type"].startswith("image/")
+
+    ground_truth = client.get("/api/patients/arcade_patient_001/frames/0/masks/ground_truth")
+    assert ground_truth.status_code == 200
+    assert ground_truth.headers["content-type"].startswith("image/")
 
 
 def test_put_labels_saves_and_returns_boxes(client):
@@ -93,6 +149,7 @@ def test_put_labels_saves_and_returns_boxes(client):
     assert response.status_code == 200
     payload = response.json()
     assert payload["hasLabels"] is True
+    assert payload["labelType"] == "bbox"
     assert len(payload["boxes"]) == 1
     assert payload["boxes"][0]["classId"] == 0
 
@@ -100,6 +157,15 @@ def test_put_labels_saves_and_returns_boxes(client):
     assert follow_up.status_code == 200
     assert follow_up.json()["hasLabels"] is True
     assert len(follow_up.json()["boxes"]) == 1
+
+
+def test_put_labels_rejected_for_mask_dataset(client):
+    client.post("/api/models/select", json={"modelId": "sam_vmnet_arcade"})
+    response = client.put(
+        "/api/labels/arcade_patient_001/0",
+        json={"boxes": [{"x1": 1, "y1": 1, "x2": 20, "y2": 20}]},
+    )
+    assert response.status_code == 409
 
 
 def test_put_labels_creates_labels_dir_for_unlabeled_patient(client):

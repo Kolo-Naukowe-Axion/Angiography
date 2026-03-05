@@ -12,7 +12,8 @@ That single command will:
 
 - Create/fix the backend virtualenv.
 - Install backend/frontend dependencies when missing or stale.
-- Validate data and model prerequisites.
+- Validate data and active model prerequisites.
+- Report SAM-VMNet precomputed mask readiness for ARCADE.
 - Start backend + frontend and print ready URLs.
 
 Open `http://127.0.0.1:5173`.
@@ -29,7 +30,7 @@ Open `http://127.0.0.1:5173`.
 
 ## 3. Data Preparation (Only If Needed)
 
-If your curated data is not already prepared:
+### Mendeley/BBox (existing flow)
 
 ```bash
 python3 demo-app/scripts/prepare_patient_data.py \
@@ -39,13 +40,33 @@ python3 demo-app/scripts/prepare_patient_data.py \
   --max-frames-per-patient 300
 ```
 
-Or let `start` auto-prepare by setting:
+### ARCADE/Mask (new flow)
 
 ```bash
-DEMO_SOURCE_ROOT=/ABSOLUTE/PATH/TO/CURATED_MENDELEY_SUBSET ./demo-app/scripts/run_demo.sh start
+python3 demo-app/scripts/prepare_arcade_data.py \
+  --source-root /ABSOLUTE/PATH/TO/ARCADE_OR_ARCADE_SYNTAX \
+  --output-root demo-app/data/patients
 ```
 
-## 4. API Smoke Checks
+Default profile is medium curated size (`10` sequences, up to `240` frames/sequence). Use script flags to tune size.
+
+## 4. SAM-VMNet Mask Precompute
+
+Run once after ARCADE prep to enable `SAM-VMNet (ARCADE)` model card in ready mode:
+
+```bash
+python3 demo-app/scripts/precompute_sam_vmnet_masks.py \
+  --data-root demo-app/data/patients \
+  --checkpoint SAM_VMNet/pre_trained_weights/best-epoch142-loss0.3230.pth
+```
+
+Useful flags:
+
+- `--dry-run` for eligibility inspection
+- `--patient-id <id>` to target one patient
+- `--overwrite` to regenerate existing predictions
+
+## 5. API Smoke Checks
 
 ```bash
 curl http://127.0.0.1:8000/api/health
@@ -53,7 +74,7 @@ curl http://127.0.0.1:8000/api/models
 curl http://127.0.0.1:8000/api/patients
 ```
 
-## 5. Environment Overrides
+## 6. Environment Overrides
 
 - `DEMO_HOST` (default `127.0.0.1`)
 - `DEMO_BACKEND_PORT` (default `8000`)
@@ -61,12 +82,12 @@ curl http://127.0.0.1:8000/api/patients
 - `DEMO_API_HOST` (optional frontend API hostname; useful when `DEMO_HOST=0.0.0.0`)
 - `DEMO_DATA_DIR` (default `demo-app/data/patients`)
 - `DEMO_MODEL_PATH` (default `YOLO26s/weights/best.pt`)
-- `DEMO_USE_MOCK_MODEL=1` to force mock inference
+- `DEMO_USE_MOCK_MODEL=1` to force mock inference for YOLO modes
 - `DEMO_AUTO_SETUP=0` to disable auto-install and run checks only
 - `DEMO_PYTHON_BIN=/path/to/python3.11` to pin Python interpreter
 
-## 6. Notes
+## 7. Notes
 
-- Default model path is `YOLO26s/weights/best.pt`.
-- If the model path is missing and `DEMO_AUTO_USE_MOCK_MODEL=1` (default), launcher falls back to mock model mode.
-- Frontend API base is set automatically by the launcher for dev mode.
+- Model selection is dataset-aware: switching model updates compatible patient list.
+- BBox editing (`PUT /api/labels`) is enabled for bbox datasets only.
+- ARCADE mask labels are read-only in current UI scope.
