@@ -1,34 +1,80 @@
-#!/bin/bash
-# Setup script for vast.ai RTX 5090 instance
-# Run: bash setup_vast.sh
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
-echo "=== SAM-VMNet + Stenosis Detection Setup (vast.ai) ==="
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${SCRIPT_DIR}"
+cd "${REPO_ROOT}"
 
-# System deps
-apt-get update && apt-get install -y git wget unzip libgl1-mesa-glx libglib2.0-0 2>/dev/null || true
+echo "=== SAM-VMNet Vast/H100 setup ==="
 
-# Clone repo
-if [ ! -d "SAM-VMNet" ]; then
-    git clone https://github.com/qimingfan10/SAM-VMNet.git
-    cd SAM-VMNet
-else
-    cd SAM-VMNet
-    git pull
+install_system_deps() {
+  local packages=(
+    git git-lfs wget curl unzip ca-certificates
+    build-essential ninja-build cmake pkg-config
+    libgl1 libglib2.0-0
+  )
+
+  if command -v apt-get >/dev/null 2>&1; then
+    if [[ "$(id -u)" -eq 0 ]]; then
+      apt-get update
+      DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo apt-get update
+      sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "${packages[@]}"
+    else
+      echo "[WARN] apt-get available but no root/sudo; skipping system deps install."
+    fi
+  else
+    echo "[WARN] apt-get not found; install required packages manually if missing."
+  fi
+}
+
+install_system_deps
+
+git lfs install
+# Pull LFS files only if this repo has lfs pointers.
+if git lfs ls-files >/dev/null 2>&1; then
+  git lfs pull || true
 fi
 
-# Python deps (core only - skip MATLAB-specific torch version constraints)
-pip install --upgrade pip
-pip install numpy opencv-python scikit-image scipy matplotlib jupyterlab ipywidgets tqdm
+VENV_PATH="${REPO_ROOT}/.venv"
+python3 -m venv "${VENV_PATH}"
+source "${VENV_PATH}/bin/activate"
 
-# PyTorch for RTX 5090 (CUDA 12.x)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+python -m pip install --upgrade pip setuptools wheel
 
-# Additional deps for SAM-VMNet model
-pip install monai SimpleITK nibabel timm==0.4.12 tensorboardX scikit-learn thop h5py medpy
+PYTORCH_INDEX_URL="${PYTORCH_INDEX_URL:-https://download.pytorch.org/whl/cu124}"
+TORCH_VERSION="${TORCH_VERSION:-2.4.1}"
+TORCHVISION_VERSION="${TORCHVISION_VERSION:-0.19.1}"
+TORCHAUDIO_VERSION="${TORCHAUDIO_VERSION:-2.4.1}"
 
-# Copy stenosis detection Python port
-echo "=== Stenosis detection (Python port) ready ==="
-echo "=== Setup complete! ==="
+python -m pip install \
+  "torch==${TORCH_VERSION}" \
+  "torchvision==${TORCHVISION_VERSION}" \
+  "torchaudio==${TORCHAUDIO_VERSION}" \
+  --index-url "${PYTORCH_INDEX_URL}"
+
+python -m pip install \
+  numpy opencv-python scikit-image scipy matplotlib tqdm \
+  jupyterlab ipywidgets monai SimpleITK nibabel \
+  timm==0.4.12 tensorboardX scikit-learn thop h5py medpy \
+  einops yacs termcolor submitit packaging pycocotools
+
+# VMamba custom kernels are mandatory for training/inference.
+export MAX_JOBS="${MAX_JOBS:-8}"
+python -m pip install --no-build-isolation causal-conv1d mamba-ssm
+
+python - <<'PY'
+import torch
+import mamba_ssm
+import causal_conv1d
+from mamba_ssm.ops.selective_scan_interface import selective_scan_fn
+print("torch:", torch.__version__)
+print("mamba_ssm:", getattr(mamba_ssm, "__version__", "unknown"))
+print("causal_conv1d:", getattr(causal_conv1d, "__version__", "unknown"))
+print("selective_scan_fn import: OK")
+PY
+
 echo ""
-echo "To run: jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser"
+echo "Setup complete. Activate environment with:"
+echo "  source ${VENV_PATH}/bin/activate"

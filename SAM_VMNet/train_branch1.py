@@ -22,16 +22,25 @@ def parse_args():
     parser.add_argument('--epochs', type=int, default=100, help='training epochs')
     parser.add_argument('--work_dir', type=str, default='./work_dir/branch1', help='work directory')
     parser.add_argument('--data_path', type=str, default='./data', help='data path')
+    parser.add_argument('--num_workers', type=int, default=4, help='dataloader workers')
+    parser.add_argument('--amp', action=argparse.BooleanOptionalAction, default=True, help='enable mixed precision')
+    parser.add_argument('--amp_dtype', choices=('bf16', 'fp16'), default='bf16')
+    parser.add_argument('--grad_accum_steps', type=int, default=1, help='gradient accumulation steps')
+    parser.add_argument('--tf32', action=argparse.BooleanOptionalAction, default=True, help='enable TF32 on Ampere+ GPUs')
     return parser.parse_args()
 
 
 def main(config, args):
     print('#----------Creating logger----------#')
     config.work_dir = args.work_dir
-    config.data_path = args.data_path
+    config.data_path = os.path.join(args.data_path, '')
     config.batch_size = args.batch_size
     config.gpu_id = args.gpu_id
     config.epochs = args.epochs
+    config.num_workers = args.num_workers
+    config.amp = args.amp
+    config.amp_dtype = args.amp_dtype
+    config.grad_accum_steps = max(1, args.grad_accum_steps)
 
     sys.path.append(config.work_dir + '/')
     log_dir = os.path.join(config.work_dir, 'log')
@@ -46,13 +55,16 @@ def main(config, args):
     global logger
     logger = get_logger('train', log_dir)
     global writer
-    writer = SummaryWriter(config.work_dir + 'summary')
+    writer = SummaryWriter(os.path.join(config.work_dir, 'summary'))
 
     log_config_info(config, logger)
 
     print('#----------GPU init----------#')
     gpu_id = int(config.gpu_id)
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = args.tf32
+        torch.backends.cudnn.allow_tf32 = args.tf32
     set_seed(config.seed)
     torch.cuda.empty_cache()
 
@@ -62,13 +74,15 @@ def main(config, args):
                               batch_size=config.batch_size,
                               shuffle=True,
                               pin_memory=True,
-                              num_workers=config.num_workers)
+                              num_workers=config.num_workers,
+                              persistent_workers=config.num_workers > 0)
     val_dataset = Branch1_datasets(config.data_path, config, train=False)
     val_loader = DataLoader(val_dataset,
                             batch_size=1,
                             shuffle=False,
                             pin_memory=True,
                             num_workers=config.num_workers,
+                            persistent_workers=config.num_workers > 0,
                             drop_last=True)
 
     test_dataset = Branch1_datasets(config.data_path, config, train=False, test=True)
@@ -77,6 +91,7 @@ def main(config, args):
                              shuffle=False,
                              pin_memory=True,
                              num_workers=config.num_workers,
+                             persistent_workers=config.num_workers > 0,
                              drop_last=True)
 
     print('#----------Prepareing Pure VM-UNet----------#')
@@ -98,6 +113,7 @@ def main(config, args):
     criterion = config.criterion
     optimizer = get_optimizer(config, model)
     scheduler = get_scheduler(config, optimizer)
+    scaler = torch.cuda.amp.GradScaler(enabled=config.amp and config.amp_dtype == 'fp16')
 
     print('#----------Set other params----------#')
     min_loss = 999
@@ -134,7 +150,8 @@ def main(config, args):
             logger,
             config,
             writer,
-            device
+            device,
+            scaler=scaler,
         )
 
         loss = val_one_epoch(
@@ -165,7 +182,7 @@ def main(config, args):
 
     if os.path.exists(os.path.join(checkpoint_dir, 'best.pth')):
         print('#----------Testing----------#')
-        best_weight = torch.load(config.work_dir + 'checkpoints/best.pth', map_location=torch.device('cpu'))
+        best_weight = torch.load(os.path.join(checkpoint_dir, 'best.pth'), map_location=torch.device('cpu'))
         model.load_state_dict(best_weight)
         loss = test_one_epoch(
             test_loader,

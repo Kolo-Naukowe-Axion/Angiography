@@ -5,6 +5,7 @@ from torch.cuda.amp import autocast as autocast
 from sklearn.metrics import confusion_matrix
 from utils import save_imgs, save_prediction
 import sys
+import os
 
 from med_sam.medsam import *
 from med_sam.medsam_point import *
@@ -20,7 +21,8 @@ def train_one_epoch(train_loader,
                     logger,
                     config,
                     writer,
-                    device):
+                    device,
+                    scaler=None):
     '''
     train model for one epoch
     '''
@@ -29,19 +31,34 @@ def train_one_epoch(train_loader,
 
     loss_list = []
 
+    use_amp = bool(getattr(config, 'amp', False)) and device.type == 'cuda'
+    amp_dtype = torch.bfloat16 if getattr(config, 'amp_dtype', 'bf16') == 'bf16' else torch.float16
+    grad_accum_steps = max(1, int(getattr(config, 'grad_accum_steps', 1)))
+    optimizer.zero_grad(set_to_none=True)
+
     for iter, data in enumerate(train_loader):
-        step += iter
-        optimizer.zero_grad()
+        step += 1
         images, targets, features = data
 
         images = images.to(device, non_blocking=True).float()
         targets = targets.to(device, non_blocking=True).float()
         features = features.to(device, non_blocking=True).float()
-        out = model(images, features)
-        loss = criterion(out, targets)
+        with autocast(enabled=use_amp, dtype=amp_dtype):
+            out = model(images, features)
+            loss = criterion(out, targets)
+            loss_to_backprop = loss / grad_accum_steps
 
-        loss.backward()
-        optimizer.step()
+        if scaler is not None and scaler.is_enabled():
+            scaler.scale(loss_to_backprop).backward()
+            if (iter + 1) % grad_accum_steps == 0 or (iter + 1) == len(train_loader):
+                scaler.step(optimizer)
+                scaler.update()
+                optimizer.zero_grad(set_to_none=True)
+        else:
+            loss_to_backprop.backward()
+            if (iter + 1) % grad_accum_steps == 0 or (iter + 1) == len(train_loader):
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
 
         loss_list.append(loss.item())
 
@@ -150,8 +167,16 @@ def test_one_epoch(test_loader,
             #     # 调用函数示例
             #     # save_prediction(out, i, '/tmp/pycharm_project_859/VM-UNet/')
             #     save_imgs(img, msk, out, i, config.work_dir + 'outputs/', config.datasets, config.threshold, test_data_name=test_data_name)
-            save_imgs(img, msk, out, i, config.work_dir + 'outputs/', config.datasets, config.threshold,
-                      test_data_name=test_data_name)
+            save_imgs(
+                img,
+                msk,
+                out,
+                i,
+                os.path.join(config.work_dir, 'outputs') + '/',
+                config.datasets,
+                config.threshold,
+                test_data_name=test_data_name,
+            )
         preds = np.array(preds).reshape(-1)
         gts = np.array(gts).reshape(-1)
 

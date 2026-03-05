@@ -1,48 +1,61 @@
-from torch.utils.data import Dataset
-import numpy as np
 import os
-from PIL import Image
-
 import random
+from pathlib import Path
+
 import h5py
+import numpy as np
 import torch
+from PIL import Image
 from scipy import ndimage
 from scipy.ndimage.interpolation import zoom
 from torch.utils.data import Dataset
-from scipy import ndimage
-from PIL import Image
+
+
+def _files_by_stem(directory: Path) -> dict[str, Path]:
+    if not directory.exists():
+        return {}
+    return {path.stem: path for path in sorted(directory.iterdir()) if path.is_file()}
+
+
+def _pair_image_mask_paths(images_dir: Path, masks_dir: Path) -> list[tuple[str, str]]:
+    images = _files_by_stem(images_dir)
+    masks = _files_by_stem(masks_dir)
+    paired: list[tuple[str, str]] = []
+    for stem in sorted(images.keys()):
+        mask_path = masks.get(stem)
+        if mask_path is None:
+            continue
+        paired.append((str(images[stem]), str(mask_path)))
+    return paired
+
+
+def _triple_image_mask_feature_paths(images_dir: Path, masks_dir: Path, feature_dir: Path) -> list[tuple[str, str, str]]:
+    images = _files_by_stem(images_dir)
+    masks = _files_by_stem(masks_dir)
+    features = _files_by_stem(feature_dir)
+    triples: list[tuple[str, str, str]] = []
+    for stem in sorted(images.keys()):
+        mask_path = masks.get(stem)
+        feature_path = features.get(stem)
+        if mask_path is None or feature_path is None:
+            continue
+        triples.append((str(images[stem]), str(mask_path), str(feature_path)))
+    return triples
 
 
 class Branch1_datasets(Dataset):
     def __init__(self, path_Data, config, train=True, test=False):
         super(Branch1_datasets, self)
+        base_path = Path(path_Data)
         if train:
-            images_list = sorted(os.listdir(path_Data+'train/images/'))
-            masks_list = sorted(os.listdir(path_Data+'train/masks/'))
-            self.data = []
-            for i in range(len(images_list)):
-                img_path = path_Data+'train/images/' + images_list[i]
-                mask_path = path_Data+'train/masks/' + masks_list[i]
-                self.data.append([img_path, mask_path])
+            self.data = _pair_image_mask_paths(base_path / "train" / "images", base_path / "train" / "masks")
             self.transformer = config.train_transformer
         else:
             if test:
-                images_list = sorted(os.listdir(path_Data+'test/images/'))
-                masks_list = sorted(os.listdir(path_Data+'test/masks/'))
-                self.data = []
-                for i in range(len(images_list)):
-                    img_path = path_Data+'test/images/' + images_list[i]
-                    mask_path = path_Data+'test/masks/' + masks_list[i]
-                    self.data.append([img_path, mask_path])
+                self.data = _pair_image_mask_paths(base_path / "test" / "images", base_path / "test" / "masks")
                 self.transformer = config.test_transformer
             else:
-                images_list = sorted(os.listdir(path_Data+'val/images/'))
-                masks_list = sorted(os.listdir(path_Data+'val/masks/'))
-                self.data = []
-                for i in range(len(images_list)):
-                    img_path = path_Data+'val/images/' + images_list[i]
-                    mask_path = path_Data+'val/masks/' + masks_list[i]
-                    self.data.append([img_path, mask_path])
+                self.data = _pair_image_mask_paths(base_path / "val" / "images", base_path / "val" / "masks")
                 self.transformer = config.test_transformer
         
     def __getitem__(self, indx):
@@ -59,61 +72,39 @@ class Branch1_datasets(Dataset):
 class Branch2_datasets(Dataset):
     def __init__(self, path_Data, config, train=True, test=False):
         super(Branch2_datasets, self)
+        base_path = Path(path_Data)
         if train:
-            images_list = sorted(os.listdir(path_Data + 'train/images/'))
-            masks_list = sorted(os.listdir(path_Data + 'train/masks/'))
-            features_list = sorted(os.listdir(path_Data + 'train/feature/'))
-            self.data = []
-            for i in range(len(images_list)):
-                img_path = path_Data + 'train/images/' + images_list[i]
-                msk_path = path_Data + 'train/masks/' + masks_list[i]
-                feature_path = path_Data + 'train/feature/' + features_list[i]
-                self.data.append((img_path, msk_path, feature_path))
+            self.data = _triple_image_mask_feature_paths(
+                base_path / "train" / "images",
+                base_path / "train" / "masks",
+                base_path / "train" / "feature",
+            )
             self.transformer = config.train_transformer
         else:
             if test:
-                images_list = sorted(os.listdir(path_Data + 'test/images/'))
-                masks_list = sorted(os.listdir(path_Data + 'test/masks/'))
-                feature_list = sorted(os.listdir(path_Data + 'test/feature/'))
-                self.data = []
-                for i in range(len(images_list)):
-                    img_path = path_Data + 'test/images/' + images_list[i]
-                    mask_path = path_Data + 'test/masks/' + masks_list[i]
-                    feature_path = path_Data + 'test/feature/' + feature_list[i]
-                    self.data.append((img_path, mask_path, feature_path))
+                self.data = _triple_image_mask_feature_paths(
+                    base_path / "test" / "images",
+                    base_path / "test" / "masks",
+                    base_path / "test" / "feature",
+                )
                 self.transformer = config.test_transformer
             else:
-                images_list = sorted(os.listdir(path_Data + 'val/images/'))
-                masks_list = sorted(os.listdir(path_Data + 'val/masks/'))
-                feature_list = sorted(os.listdir(path_Data + 'val/feature/'))
-                self.data = []
-                for i in range(len(images_list)):
-                    img_path = path_Data + 'val/images/' + images_list[i]
-                    mask_path = path_Data + 'val/masks/' + masks_list[i]
-                    feature_path = path_Data + 'val/feature/' + feature_list[i]
-                    self.data.append((img_path, mask_path, feature_path))
+                self.data = _triple_image_mask_feature_paths(
+                    base_path / "val" / "images",
+                    base_path / "val" / "masks",
+                    base_path / "val" / "feature",
+                )
                 self.transformer = config.test_transformer
 
     def __getitem__(self, indx):
-        try:
-            img_path, msk_path, feature_path = self.data[indx]
-            img = np.array(Image.open(img_path).convert('RGB'))
-            msk = np.expand_dims(np.array(Image.open(msk_path).convert('L')), axis=2) / 255
-            feature = torch.load(feature_path, map_location='cpu')
+        img_path, msk_path, feature_path = self.data[indx]
+        img = np.array(Image.open(img_path).convert('RGB'))
+        msk = np.expand_dims(np.array(Image.open(msk_path).convert('L')), axis=2) / 255
+        feature = torch.load(feature_path, map_location='cpu')
 
-            if self.transformer is not None:
-                img, msk = self.transformer((img, msk))
-                #feature = feature.to('cpu')
-            return img, msk, feature 
-        except:
-            img_path, msk_path = self.data[indx]
-            img = np.array(Image.open(img_path).convert('RGB'))
-            msk = np.expand_dims(np.array(Image.open(msk_path).convert('L')), axis=2) / 255
-
-            if self.transformer is not None:
-                img, msk = self.transformer((img, msk))
-
-            return img, msk
+        if self.transformer is not None:
+            img, msk = self.transformer((img, msk))
+        return img, msk, feature
 
     def __len__(self):
         return len(self.data)

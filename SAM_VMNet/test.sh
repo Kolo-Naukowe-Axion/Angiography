@@ -8,4 +8,4 @@ python test.py \
     --data_path "./data/vessel/" \
     --pretrained_weight "./result_branch1/checkpoints/best-epoch160-loss0.2211.pth" \
     --device "cuda:7" \
-    --output_dir "./data/vessel/test"
+    --pred_masks_dir "./data/vessel/test/pred_masks"
