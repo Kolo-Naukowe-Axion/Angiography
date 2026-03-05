@@ -14,16 +14,22 @@ from app.main import create_app
 @pytest.fixture()
 def temp_data_dir(tmp_path: Path) -> Path:
     data_dir = tmp_path / "patients"
-    frames_dir = data_dir / "patient_001" / "frames"
-    labels_dir = data_dir / "patient_001" / "labels"
-    frames_dir.mkdir(parents=True)
-    labels_dir.mkdir(parents=True)
+    frames_dir_1 = data_dir / "patient_001" / "frames"
+    labels_dir_1 = data_dir / "patient_001" / "labels"
+    frames_dir_2 = data_dir / "patient_002" / "frames"
+    frames_dir_1.mkdir(parents=True)
+    labels_dir_1.mkdir(parents=True)
+    frames_dir_2.mkdir(parents=True)
 
     for index in range(3):
         img = Image.new("RGB", (512, 512), color=(20 + index * 5, 20, 20))
-        img.save(frames_dir / f"frame_{index:03d}.png")
+        img.save(frames_dir_1 / f"frame_{index:03d}.png")
 
-    (labels_dir / "frame_000.txt").write_text("0 0.5 0.5 0.4 0.4\n", encoding="utf-8")
+    for index in range(2):
+        img = Image.new("RGB", (512, 512), color=(20, 25 + index * 10, 20))
+        img.save(frames_dir_2 / f"frame_{index:03d}.png")
+
+    (labels_dir_1 / "frame_000.txt").write_text("0 0.5 0.5 0.4 0.4\n", encoding="utf-8")
 
     manifest = {
         "patients": [
@@ -33,6 +39,12 @@ def temp_data_dir(tmp_path: Path) -> Path:
                 "framesDir": "patient_001/frames",
                 "labelsDir": "patient_001/labels",
                 "defaultFps": 12,
+            },
+            {
+                "id": "patient_002",
+                "displayName": "Patient 002",
+                "framesDir": "patient_002/frames",
+                "defaultFps": 15,
             }
         ]
     }

@@ -59,3 +59,25 @@ def test_bmp_frames_supported_and_empty_labels_not_marked(tmp_path: Path) -> Non
     summary = store.summaries()[0]
     assert summary.frameCount == 1
     assert summary.hasLabels is False
+
+
+def test_ensure_labels_dir_and_mark_label_saved_for_unlabeled_patient(tmp_path: Path) -> None:
+    data_dir = tmp_path / "patients"
+    frame_dir = data_dir / "p1" / "frames"
+    frame_dir.mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (128, 128), color=(20, 20, 20)).save(frame_dir / "f1.png")
+
+    manifest = {"patients": [{"id": "p1", "framesDir": "p1/frames", "defaultFps": 12}]}
+    (data_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    store = PatientStore(data_dir)
+    labels_dir = store.ensure_labels_dir("p1")
+    assert labels_dir.exists()
+    assert labels_dir == data_dir / "p1" / "labels"
+
+    writable_path = store.get_writable_label_path("p1", 0)
+    assert writable_path == labels_dir / "f1.txt"
+
+    store.mark_label_saved("p1", 0)
+    summary = store.summaries()[0]
+    assert summary.hasLabels is True

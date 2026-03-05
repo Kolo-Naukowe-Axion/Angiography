@@ -31,6 +31,13 @@ class Box(BaseModel):
     className: Literal["stenosis"] = "stenosis"
 
 
+class GroundTruthBoxInput(BaseModel):
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
 class InferFrameRequest(BaseModel):
     patientId: str
     frameIndex: int = Field(ge=0)
@@ -59,6 +66,17 @@ class PrefetchResponse(BaseModel):
 
 class ModelSelectRequest(BaseModel):
     modelId: Literal["yolo26s", "yolo26n"]
+
+
+class SaveLabelsRequest(BaseModel):
+    boxes: list[GroundTruthBoxInput]
+
+
+class LabelsResponse(BaseModel):
+    patientId: str
+    frameIndex: int
+    hasLabels: bool
+    boxes: list[Box]
 
 
 class HealthResponse(BaseModel):
