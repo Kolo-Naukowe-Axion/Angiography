@@ -19,7 +19,7 @@ def _natural_key(path: Path) -> list[int | str]:
     return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.stem)]
 
 
-@dataclass(frozen=True)
+@dataclass
 class PatientRecord:
     id: str
     display_name: str
@@ -131,3 +131,24 @@ class PatientStore:
         if frame_path.stem not in patient.label_stems:
             return None
         return patient.labels_dir / f"{frame_path.stem}.txt"
+
+    def ensure_labels_dir(self, patient_id: str) -> Path:
+        patient = self.get_patient(patient_id)
+        if patient.labels_dir is not None:
+            patient.labels_dir.mkdir(parents=True, exist_ok=True)
+            return patient.labels_dir
+
+        labels_dir = patient.frames_dir.parent / "labels"
+        labels_dir.mkdir(parents=True, exist_ok=True)
+        patient.labels_dir = labels_dir
+        return labels_dir
+
+    def get_writable_label_path(self, patient_id: str, frame_index: int) -> Path:
+        frame_path = self.get_frame_path(patient_id, frame_index)
+        labels_dir = self.ensure_labels_dir(patient_id)
+        return labels_dir / f"{frame_path.stem}.txt"
+
+    def mark_label_saved(self, patient_id: str, frame_index: int) -> None:
+        patient = self.get_patient(patient_id)
+        frame_path = self.get_frame_path(patient_id, frame_index)
+        patient.label_stems.add(frame_path.stem)

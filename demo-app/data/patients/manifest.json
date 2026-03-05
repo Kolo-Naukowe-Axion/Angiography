@@ -34,6 +34,78 @@
       "framesDir": "dataset_14_007_10/frames",
       "defaultFps": 12,
       "labelsDir": "dataset_14_007_10/labels"
+    },
+    {
+      "id": "dicom_im_0007_0084_0001",
+      "displayName": "DICOM IM 0007 0084 0001",
+      "framesDir": "dicom_im_0007_0084_0001/frames",
+      "defaultFps": 12
+    },
+    {
+      "id": "dicom_im_0001_0048_0001",
+      "displayName": "DICOM IM 0001 0048 0001",
+      "framesDir": "dicom_im_0001_0048_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0002_0070_0001",
+      "displayName": "DICOM IM 0002 0070 0001",
+      "framesDir": "dicom_im_0002_0070_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0003_0063_0001",
+      "displayName": "DICOM IM 0003 0063 0001",
+      "framesDir": "dicom_im_0003_0063_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0004_0058_0001",
+      "displayName": "DICOM IM 0004 0058 0001",
+      "framesDir": "dicom_im_0004_0058_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0005_0076_0001",
+      "displayName": "DICOM IM 0005 0076 0001",
+      "framesDir": "dicom_im_0005_0076_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0006_0061_0001",
+      "displayName": "DICOM IM 0006 0061 0001",
+      "framesDir": "dicom_im_0006_0061_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0008_0015_0001",
+      "displayName": "DICOM IM 0008 0015 0001",
+      "framesDir": "dicom_im_0008_0015_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0009_0048_0001",
+      "displayName": "DICOM IM 0009 0048 0001",
+      "framesDir": "dicom_im_0009_0048_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0010_0014_0001",
+      "displayName": "DICOM IM 0010 0014 0001",
+      "framesDir": "dicom_im_0010_0014_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0011_0097_0001",
+      "displayName": "DICOM IM 0011 0097 0001",
+      "framesDir": "dicom_im_0011_0097_0001/frames",
+      "defaultFps": 15
+    },
+    {
+      "id": "dicom_im_0012_0001_0001",
+      "displayName": "DICOM IM 0012 0001 0001",
+      "framesDir": "dicom_im_0012_0001_0001/frames",
+      "defaultFps": 12
     }
   ]
 }

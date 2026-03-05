@@ -148,10 +148,39 @@ body {
   text-transform: uppercase;
 }
 
-.model-list,
+.model-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.patients-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .patient-list {
   display: grid;
   gap: 0.6rem;
+  min-height: 0;
+  max-height: clamp(220px, 46vh, 560px);
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 247, 255, 0.5) rgba(6, 19, 30, 0.5);
+}
+
+.patient-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.patient-list::-webkit-scrollbar-track {
+  background: rgba(6, 19, 30, 0.45);
+  border-radius: 999px;
+}
+
+.patient-list::-webkit-scrollbar-thumb {
+  background: rgba(103, 247, 255, 0.45);
+  border-radius: 999px;
 }
 
 .model-card {
@@ -180,6 +209,10 @@ body {
 .model-card.selectable[aria-disabled="true"] {
   cursor: wait;
   transform: none;
+}
+
+.model-card.disabled {
+  cursor: not-allowed;
 }
 
 .model-card.inactive {
@@ -258,6 +291,11 @@ body {
 .patient-button.selected {
   border-color: var(--cyan);
   background: rgba(13, 41, 56, 0.82);
+}
+
+.patient-button:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
 }
 
 .patient-name {
@@ -360,6 +398,10 @@ body {
   font-size: 0.7rem;
 }
 
+.dirty-note {
+  color: #ffd179;
+}
+
 .viewer-stage {
   position: relative;
   border-radius: 0.9rem;
@@ -388,6 +430,11 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
+}
+
+.overlay-layer.annotation-enabled {
+  pointer-events: auto;
+  cursor: crosshair;
 }
 
 .bbox {
@@ -421,14 +468,46 @@ body {
   box-shadow: 0 0 14px rgba(255, 203, 63, 0.4);
 }
 
+.overlay-layer.annotation-enabled .bbox.ground-truth {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.bbox.ground-truth.selected {
+  border-color: #ffe484;
+  box-shadow: 0 0 16px rgba(255, 228, 132, 0.9);
+}
+
 .bbox.ground-truth span {
   background: rgba(168, 125, 28, 0.82);
   color: #fff0c7;
 }
 
+.bbox.draft-box {
+  border-style: dashed;
+  border-color: #ffd67a;
+  box-shadow: 0 0 16px rgba(255, 214, 122, 0.48);
+}
+
+.bbox.draft-box span {
+  background: rgba(179, 134, 19, 0.85);
+  color: #fff2cf;
+}
+
 .control-deck {
   display: grid;
   gap: 0.55rem;
+}
+
+.annotation-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.annotation-controls button.selected {
+  border-color: #ffcb3f;
+  background: rgba(94, 70, 14, 0.58);
 }
 
 .transport-controls {
@@ -450,6 +529,12 @@ button {
 button:hover {
   transform: translateY(-1px);
   border-color: var(--cyan);
+}
+
+button:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .timeline-slider,

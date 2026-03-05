@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
@@ -13,20 +14,34 @@ from .classification import has_stenosis
 from .config import Settings
 from .data import ManifestValidationError, PatientStore
 from .inference import MockInferenceService, YOLOInferenceService
-from .label_utils import parse_yolo_labels_to_boxes
+from .label_utils import parse_yolo_labels_to_boxes, write_yolo_labels_from_boxes
 from .models_registry import MODEL_PATHS, get_model_cards, get_model_path
 from .schemas import (
+    GroundTruthBoxInput,
     HealthResponse,
     InferFrameRequest,
     InferFrameResponse,
+    LabelsResponse,
     ModelSelectRequest,
     PrefetchRequest,
     PrefetchResponse,
+    SaveLabelsRequest,
 )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     app_settings = settings or Settings.from_env()
+
+    def _validate_ground_truth_boxes(boxes: list[GroundTruthBoxInput]) -> None:
+        for index, box in enumerate(boxes):
+            coordinates = (box.x1, box.y1, box.x2, box.y2)
+            if not all(math.isfinite(value) for value in coordinates):
+                raise HTTPException(status_code=400, detail=f"Invalid box at index {index}: coordinates must be finite.")
+            if box.x2 <= box.x1 or box.y2 <= box.y1:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid box at index {index}: expected x2>x1 and y2>y1.",
+                )
 
     async def _create_model_service(model_path: Path):
         if app_settings.use_mock_model:
@@ -199,8 +214,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             endFrame=end,
         )
 
-    @app.get("/api/labels/{patient_id}/{frame_index}")
-    async def labels(patient_id: str, frame_index: int):
+    @app.get("/api/labels/{patient_id}/{frame_index}", response_model=LabelsResponse)
+    async def labels(patient_id: str, frame_index: int) -> LabelsResponse:
         try:
             frame_path = app.state.patient_store.get_frame_path(patient_id, frame_index)
             label_path = app.state.patient_store.get_label_path(patient_id, frame_index)
@@ -210,10 +225,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Frame index out of range: {frame_index}") from error
 
         if label_path is None:
-            return {"patientId": patient_id, "frameIndex": frame_index, "hasLabels": False, "boxes": []}
+            return LabelsResponse(patientId=patient_id, frameIndex=frame_index, hasLabels=False, boxes=[])
 
         boxes = parse_yolo_labels_to_boxes(label_path, frame_path)
-        return {"patientId": patient_id, "frameIndex": frame_index, "hasLabels": True, "boxes": boxes}
+        return LabelsResponse(patientId=patient_id, frameIndex=frame_index, hasLabels=True, boxes=boxes)
+
+    @app.put("/api/labels/{patient_id}/{frame_index}", response_model=LabelsResponse)
+    async def save_labels(patient_id: str, frame_index: int, payload: SaveLabelsRequest) -> LabelsResponse:
+        _validate_ground_truth_boxes(payload.boxes)
+
+        try:
+            frame_path = app.state.patient_store.get_frame_path(patient_id, frame_index)
+            label_path = app.state.patient_store.get_writable_label_path(patient_id, frame_index)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=f"Unknown patient: {patient_id}") from error
+        except IndexError as error:
+            raise HTTPException(status_code=404, detail=f"Frame index out of range: {frame_index}") from error
+
+        try:
+            write_yolo_labels_from_boxes(label_path, frame_path, payload.boxes)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        app.state.patient_store.mark_label_saved(patient_id, frame_index)
+        boxes = parse_yolo_labels_to_boxes(label_path, frame_path)
+        return LabelsResponse(patientId=patient_id, frameIndex=frame_index, hasLabels=True, boxes=boxes)
 
     @app.get("/api/classification/{patient_id}/{frame_index}")
     async def classification(patient_id: str, frame_index: int, threshold: float = 0.5):

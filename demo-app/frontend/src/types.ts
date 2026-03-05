@@ -49,3 +49,10 @@ export type LabelsResponse = {
   hasLabels: boolean;
   boxes: Box[];
 };
+
+export type GroundTruthBoxInput = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+};
