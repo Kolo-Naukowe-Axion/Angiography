@@ -1,4 +1,5 @@
 import type {
+  GroundTruthBoxInput,
   HealthResponse,
   InferFrameResponse,
   LabelsResponse,
@@ -63,6 +64,17 @@ export function inferFrame(patientId: string, frameIndex: number): Promise<Infer
 
 export function getLabels(patientId: string, frameIndex: number): Promise<LabelsResponse> {
   return fetchJson<LabelsResponse>(`/api/labels/${patientId}/${frameIndex}`);
+}
+
+export function saveLabels(
+  patientId: string,
+  frameIndex: number,
+  boxes: GroundTruthBoxInput[],
+): Promise<LabelsResponse> {
+  return fetchJson<LabelsResponse>(`/api/labels/${patientId}/${frameIndex}`, {
+    method: "PUT",
+    body: JSON.stringify({ boxes }),
+  });
 }
 
 export function prefetchFrames(patientId: string, startFrame: number, endFrame: number): Promise<void> {
