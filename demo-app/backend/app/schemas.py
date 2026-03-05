@@ -4,13 +4,21 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+DatasetId = Literal["mendeley", "arcade"]
+LabelType = Literal["bbox", "mask"]
+OutputType = Literal["bbox", "mask"]
+InferenceMode = Literal["live", "precomputed", "mock"]
+
 
 class ModelCard(BaseModel):
-    id: Literal["yolo26s", "yolo26n"]
+    id: Literal["yolo26s", "yolo26n", "sam_vmnet_arcade"]
     name: str
     active: bool
     status: Literal["ready", "unavailable"]
     notes: str
+    datasetId: DatasetId
+    outputType: OutputType
+    inferenceMode: InferenceMode
 
 
 class PatientSummary(BaseModel):
@@ -19,6 +27,8 @@ class PatientSummary(BaseModel):
     frameCount: int
     hasLabels: bool
     defaultFps: int
+    datasetId: DatasetId
+    labelType: LabelType
 
 
 class Box(BaseModel):
@@ -38,6 +48,13 @@ class GroundTruthBoxInput(BaseModel):
     y2: float
 
 
+class MaskPayload(BaseModel):
+    url: str
+    width: int
+    height: int
+    positivePixelRatio: float
+
+
 class InferFrameRequest(BaseModel):
     patientId: str
     frameIndex: int = Field(ge=0)
@@ -46,7 +63,10 @@ class InferFrameRequest(BaseModel):
 class InferFrameResponse(BaseModel):
     patientId: str
     frameIndex: int
-    boxes: list[Box]
+    outputType: OutputType
+    boxes: list[Box] = Field(default_factory=list)
+    mask: MaskPayload | None = None
+    stenosisDetected: bool
     cached: bool
     inferenceMs: float
 
@@ -65,7 +85,7 @@ class PrefetchResponse(BaseModel):
 
 
 class ModelSelectRequest(BaseModel):
-    modelId: Literal["yolo26s", "yolo26n"]
+    modelId: Literal["yolo26s", "yolo26n", "sam_vmnet_arcade"]
 
 
 class SaveLabelsRequest(BaseModel):
@@ -76,7 +96,9 @@ class LabelsResponse(BaseModel):
     patientId: str
     frameIndex: int
     hasLabels: bool
-    boxes: list[Box]
+    labelType: LabelType
+    boxes: list[Box] = Field(default_factory=list)
+    mask: MaskPayload | None = None
 
 
 class HealthResponse(BaseModel):
