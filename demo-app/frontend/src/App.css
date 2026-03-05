@@ -148,10 +148,39 @@ body {
   text-transform: uppercase;
 }
 
-.model-list,
+.model-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.patients-card {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .patient-list {
   display: grid;
   gap: 0.6rem;
+  min-height: 0;
+  max-height: clamp(220px, 46vh, 560px);
+  overflow-y: auto;
+  padding-right: 0.2rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(103, 247, 255, 0.5) rgba(6, 19, 30, 0.5);
+}
+
+.patient-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.patient-list::-webkit-scrollbar-track {
+  background: rgba(6, 19, 30, 0.45);
+  border-radius: 999px;
+}
+
+.patient-list::-webkit-scrollbar-thumb {
+  background: rgba(103, 247, 255, 0.45);
+  border-radius: 999px;
 }
 
 .model-card {

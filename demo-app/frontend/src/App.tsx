@@ -531,7 +531,7 @@ function App() {
             </div>
           </section>
 
-          <section className="rail-card">
+          <section className="rail-card patients-card">
             <h2>Patients</h2>
             <div className="patient-list">
               {patients.length === 0 ? <p className="empty-text">No curated data loaded.</p> : null}
