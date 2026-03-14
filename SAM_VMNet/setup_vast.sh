@@ -10,6 +10,7 @@ echo "=== SAM-VMNet Vast/H100 setup ==="
 install_system_deps() {
   local packages=(
     git git-lfs wget curl unzip ca-certificates
+    python3 python3-venv python3-pip python3-dev
     build-essential ninja-build cmake pkg-config
     libgl1 libglib2.0-0
   )

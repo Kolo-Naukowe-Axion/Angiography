@@ -1,23 +1,24 @@
 """
 Convert ARCADE syntax dataset (COCO polygon annotations) to binary mask PNGs
-for SAM-VMNet's expected ./data/vessel/ structure.
+for SAM-VMNet's expected ../datasets/arcade/data/vessel/ structure.
 """
 
 import json
-import os
 import shutil
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw
 
-ARCADE_DIR = "arcade/syntax"
-OUTPUT_DIR = "data/vessel"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+ARCADE_DIR = REPO_ROOT / "datasets" / "arcade" / "data" / "syntax"
+OUTPUT_DIR = REPO_ROOT / "datasets" / "arcade" / "data" / "vessel"
 SPLITS = ["train", "val", "test"]
 
 
 def coco_to_binary_masks(annotation_path, image_dir, out_images_dir, out_masks_dir):
-    with open(annotation_path) as f:
+    with annotation_path.open() as f:
         coco = json.load(f)
 
     # Group annotations by image_id
@@ -45,11 +46,11 @@ def coco_to_binary_masks(annotation_path, image_dir, out_images_dir, out_masks_d
                 draw.polygon(polygon, fill=255)
 
         # Save mask
-        mask.save(os.path.join(out_masks_dir, filename))
+        mask.save(out_masks_dir / filename)
 
         # Copy image
-        src = os.path.join(image_dir, filename)
-        dst = os.path.join(out_images_dir, filename)
+        src = image_dir / filename
+        dst = out_images_dir / filename
         shutil.copy2(src, dst)
 
     return len(images)
@@ -57,18 +58,18 @@ def coco_to_binary_masks(annotation_path, image_dir, out_images_dir, out_masks_d
 
 def main():
     for split in SPLITS:
-        out_images = os.path.join(OUTPUT_DIR, split, "images")
-        out_masks = os.path.join(OUTPUT_DIR, split, "masks")
-        os.makedirs(out_images, exist_ok=True)
-        os.makedirs(out_masks, exist_ok=True)
+        out_images = OUTPUT_DIR / split / "images"
+        out_masks = OUTPUT_DIR / split / "masks"
+        out_images.mkdir(parents=True, exist_ok=True)
+        out_masks.mkdir(parents=True, exist_ok=True)
 
-        ann_path = os.path.join(ARCADE_DIR, split, "annotations", f"{split}.json")
-        img_dir = os.path.join(ARCADE_DIR, split, "images")
+        ann_path = ARCADE_DIR / split / "annotations" / f"{split}.json"
+        img_dir = ARCADE_DIR / split / "images"
 
         n = coco_to_binary_masks(ann_path, img_dir, out_images, out_masks)
         print(f"{split}: converted {n} images")
 
-    print(f"\nDone. Dataset ready at ./{OUTPUT_DIR}/")
+    print(f"\nDone. Dataset ready at {OUTPUT_DIR}/")
 
 
 if __name__ == "__main__":

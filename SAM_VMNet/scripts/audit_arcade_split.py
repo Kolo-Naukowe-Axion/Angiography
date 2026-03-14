@@ -16,7 +16,8 @@ import argparse
 import csv
 import json
 import re
-from dataclasses import dataclass, asdict
+import hashlib
+from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 from typing import Iterable
@@ -33,6 +34,7 @@ class FrameRecord:
     width: int
     height: int
     image_path: Path
+    image_md5: str
     patient_key: str
     sequence_key: str
     annotations: list[dict]
@@ -77,6 +79,14 @@ def _validate_syntax_root(syntax_root: Path) -> None:
             )
 
 
+def _file_md5(path: Path) -> str:
+    digest = hashlib.md5()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _load_split_records(syntax_root: Path, split: str) -> list[FrameRecord]:
     ann_path = syntax_root / split / "annotations" / f"{split}.json"
     img_dir = syntax_root / split / "images"
@@ -99,6 +109,9 @@ def _load_split_records(syntax_root: Path, split: str) -> list[FrameRecord]:
             continue
 
         patient_key, sequence_key = infer_patient_sequence_keys(file_name)
+        image_path = (img_dir / file_name).resolve()
+        if not image_path.exists():
+            raise FileNotFoundError(f"Image listed in annotations does not exist: {image_path}")
         records.append(
             FrameRecord(
                 source_split=split,
@@ -107,7 +120,8 @@ def _load_split_records(syntax_root: Path, split: str) -> list[FrameRecord]:
                 file_name=file_name,
                 width=int(image.get("width", 0)),
                 height=int(image.get("height", 0)),
-                image_path=(img_dir / file_name).resolve(),
+                image_path=image_path,
+                image_md5=_file_md5(image_path),
                 patient_key=patient_key,
                 sequence_key=sequence_key,
                 annotations=anns_by_image.get(image_id, []),
@@ -154,20 +168,57 @@ def _has_any_overlap(overlap_block: dict[str, dict[str, object]]) -> bool:
     return any(int(entry["count"]) > 0 for entry in overlap_block.values())
 
 
+def _is_inferred_key_reliable(records: list[FrameRecord], attr_name: str) -> dict[str, object]:
+    values = [getattr(record, attr_name) for record in records]
+    if not values:
+        return {
+            "reliable": False,
+            "reason": "no-keys",
+            "numeric_ratio": 0.0,
+            "has_separator_ratio": 0.0,
+        }
+
+    numeric_count = sum(1 for value in values if re.fullmatch(r"\d+", value))
+    separator_count = sum(1 for value in values if ("_" in value or "-" in value))
+    numeric_ratio = numeric_count / len(values)
+    has_separator_ratio = separator_count / len(values)
+
+    # If keys are almost entirely plain numbers with no separators, they are
+    # likely local frame ids and not stable patient/sequence identifiers.
+    reliable = not (numeric_ratio >= 0.9 and has_separator_ratio <= 0.1)
+
+    return {
+        "reliable": reliable,
+        "reason": "numeric-id-like" if not reliable else "pattern-supported",
+        "numeric_ratio": round(numeric_ratio, 4),
+        "has_separator_ratio": round(has_separator_ratio, 4),
+    }
+
+
 def audit_records(records: list[FrameRecord]) -> dict:
     split_counts = {split: 0 for split in SPLITS}
     for record in records:
         split_counts[record.assigned_split] += 1
 
     filename_overlap = _filenames_overlap(records)
+    content_hash_overlap = _key_overlap(records, "image_md5")
     patient_overlap = _key_overlap(records, "patient_key")
     sequence_overlap = _key_overlap(records, "sequence_key")
 
-    passed = not (
-        _has_any_overlap(filename_overlap)
-        or _has_any_overlap(patient_overlap)
-        or _has_any_overlap(sequence_overlap)
-    )
+    patient_key_quality = _is_inferred_key_reliable(records, "patient_key")
+    sequence_key_quality = _is_inferred_key_reliable(records, "sequence_key")
+    enforce_patient = bool(patient_key_quality["reliable"])
+    enforce_sequence = bool(sequence_key_quality["reliable"])
+
+    # Leakage pass/fail criteria:
+    # 1) Exact image content must not overlap across splits.
+    # 2) Inferred patient/sequence keys are only enforced when their pattern is
+    #    reliable (e.g., keys encode structured identifiers).
+    passed = not _has_any_overlap(content_hash_overlap)
+    if enforce_patient:
+        passed = passed and (not _has_any_overlap(patient_overlap))
+    if enforce_sequence:
+        passed = passed and (not _has_any_overlap(sequence_overlap))
 
     return {
         "passed": passed,
@@ -176,8 +227,18 @@ def audit_records(records: list[FrameRecord]) -> dict:
             "split_counts": split_counts,
             "unique_patients": len({record.patient_key for record in records}),
             "unique_sequences": len({record.sequence_key for record in records}),
+            "unique_image_hashes": len({record.image_md5 for record in records}),
+        },
+        "key_inference": {
+            "patient_key": patient_key_quality,
+            "sequence_key": sequence_key_quality,
+            "enforced_for_pass_fail": {
+                "patient_key_overlap": enforce_patient,
+                "sequence_key_overlap": enforce_sequence,
+            },
         },
         "overlaps": {
+            "image_content_hashes": content_hash_overlap,
             "filenames": filename_overlap,
             "patient_keys": patient_overlap,
             "sequence_keys": sequence_overlap,
@@ -197,6 +258,7 @@ def write_index_csv(records: list[FrameRecord], path: Path) -> None:
                 "file_name",
                 "patient_key",
                 "sequence_key",
+                "image_md5",
                 "image_path",
                 "width",
                 "height",
@@ -212,6 +274,7 @@ def write_index_csv(records: list[FrameRecord], path: Path) -> None:
                     "file_name": record.file_name,
                     "patient_key": record.patient_key,
                     "sequence_key": record.sequence_key,
+                    "image_md5": record.image_md5,
                     "image_path": str(record.image_path),
                     "width": record.width,
                     "height": record.height,

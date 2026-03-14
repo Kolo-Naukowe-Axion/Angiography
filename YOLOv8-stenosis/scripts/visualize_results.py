@@ -8,7 +8,7 @@ Generates a grid of comparisons showing:
 
 Usage:
     python scripts/visualize_results.py \
-        --weights weights/best.pt \
+        --weights ../models/yolov8-stenosis/best.pt \
         --test-images dataset/images/test \
         --test-labels dataset/labels/test \
         --output results/examples
@@ -27,6 +27,7 @@ from ultralytics import YOLO
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}
 GREEN = (0, 200, 0)
 RED = (0, 0, 255)
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def load_gt_boxes(label_path, img_w, img_h):
@@ -57,7 +58,7 @@ def draw_boxes(img, boxes, color, label=None, thickness=2):
 
 def main():
     parser = argparse.ArgumentParser(description="Visualize predictions vs ground truth")
-    parser.add_argument("--weights", type=str, default="weights/best.pt")
+    parser.add_argument("--weights", type=str, default=str(ROOT_DIR / "models" / "yolov8-stenosis" / "best.pt"))
     parser.add_argument("--test-images", type=str, default="dataset/images/test")
     parser.add_argument("--test-labels", type=str, default="dataset/labels/test")
     parser.add_argument("--output", type=str, default="results/examples")

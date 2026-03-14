@@ -5,6 +5,7 @@ import time
 import os
 import sys
 import argparse
+from pathlib import Path
 
 from dataset import Branch2_datasets
 from tensorboardX import SummaryWriter
@@ -20,6 +21,7 @@ import shutil
 import warnings
 
 warnings.filterwarnings("ignore")
+DEFAULT_DATA_PATH = str(Path(__file__).resolve().parents[1] / "datasets" / "arcade" / "data" / "vessel")
 
 
 def parse_args():
@@ -28,7 +30,7 @@ def parse_args():
     parser.add_argument('--gpu_id', type=str, default='0', help='GPU ID')
     parser.add_argument('--epochs', type=int, default=100, help='training epochs')
     parser.add_argument('--work_dir', type=str, default='./work_dir/branch2', help='work directory')
-    parser.add_argument('--data_path', type=str, default='./data', help='data path')
+    parser.add_argument('--data_path', type=str, default=DEFAULT_DATA_PATH, help='data path')
     parser.add_argument('--medsam_path', type=str, required=True, help='path to MedSAM model')
     parser.add_argument('--branch1_model_path', type=str, required=True, help='path to trained Branch1 model')
     parser.add_argument('--num_workers', type=int, default=4, help='dataloader workers')

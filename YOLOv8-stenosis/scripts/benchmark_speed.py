@@ -5,7 +5,7 @@ Tests PyTorch (.pt) and ONNX (.onnx) on GPU and CPU.
 
 Usage:
     python scripts/benchmark_speed.py
-    python scripts/benchmark_speed.py --weights weights/best.pt
+    python scripts/benchmark_speed.py --weights ../models/yolov8-stenosis/best.pt
 """
 
 import argparse
@@ -15,6 +15,8 @@ from pathlib import Path
 
 import numpy as np
 from ultralytics import YOLO
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def benchmark(model, imgsz, n_warmup=10, n_runs=100):
@@ -41,7 +43,7 @@ def benchmark(model, imgsz, n_warmup=10, n_runs=100):
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark inference speed")
-    parser.add_argument("--weights", type=str, default="weights/best.pt")
+    parser.add_argument("--weights", type=str, default=str(ROOT_DIR / "models" / "yolov8-stenosis" / "best.pt"))
     parser.add_argument("--imgsz", type=int, default=512)
     parser.add_argument("--runs", type=int, default=100)
     parser.add_argument("--export-onnx", action="store_true", help="Also export and benchmark ONNX")

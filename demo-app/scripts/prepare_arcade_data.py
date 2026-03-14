@@ -11,6 +11,10 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SOURCE_ROOT = REPO_ROOT / "datasets" / "arcade" / "data"
+DEFAULT_OUTPUT_ROOT = REPO_ROOT / "demo-app" / "data" / "patients"
+
 
 def natural_key(value: str) -> list[int | str]:
     stem = Path(value).stem
@@ -49,7 +53,13 @@ class FrameSample:
 
 
 def discover_split_layouts(source_root: Path) -> list[SplitLayout]:
-    candidates = [source_root, source_root / "syntax", source_root / "arcade" / "syntax"]
+    candidates = [
+        source_root,
+        source_root / "syntax",
+        source_root / "data",
+        source_root / "data" / "syntax",
+        source_root / "arcade" / "syntax",
+    ]
     layouts: list[SplitLayout] = []
 
     for base in candidates:
@@ -136,8 +146,13 @@ def resolve_image_path(layouts: list[SplitLayout], split: str, file_name: str) -
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Prepare ARCADE patient data (frames + GT masks) for demo-app.")
-    parser.add_argument("--source-root", type=Path, required=True, help="Path to ARCADE root or ARCADE/syntax root")
-    parser.add_argument("--output-root", type=Path, default=Path("demo-app/data/patients"))
+    parser.add_argument(
+        "--source-root",
+        type=Path,
+        default=DEFAULT_SOURCE_ROOT,
+        help="Path to ARCADE root or ARCADE/syntax root",
+    )
+    parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--max-patients", type=int, default=10)
     parser.add_argument("--max-frames-per-patient", type=int, default=240)
     parser.add_argument("--min-frames-per-patient", type=int, default=20)

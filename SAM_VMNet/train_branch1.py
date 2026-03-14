@@ -11,8 +11,10 @@ from utils import *
 from configs.config_setting import setting_config
 import warnings
 import argparse
+from pathlib import Path
 
 warnings.filterwarnings("ignore")
+DEFAULT_DATA_PATH = str(Path(__file__).resolve().parents[1] / "datasets" / "arcade" / "data" / "vessel")
 
 
 def parse_args():
@@ -21,7 +23,7 @@ def parse_args():
     parser.add_argument('--gpu_id', type=str, default='0', help='GPU ID')
     parser.add_argument('--epochs', type=int, default=100, help='training epochs')
     parser.add_argument('--work_dir', type=str, default='./work_dir/branch1', help='work directory')
-    parser.add_argument('--data_path', type=str, default='./data', help='data path')
+    parser.add_argument('--data_path', type=str, default=DEFAULT_DATA_PATH, help='data path')
     parser.add_argument('--num_workers', type=int, default=4, help='dataloader workers')
     parser.add_argument('--amp', action=argparse.BooleanOptionalAction, default=True, help='enable mixed precision')
     parser.add_argument('--amp_dtype', choices=('bf16', 'fp16'), default='bf16')

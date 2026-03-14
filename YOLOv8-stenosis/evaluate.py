@@ -3,7 +3,7 @@ Evaluate trained YOLOv8-M on the test split and save metrics to JSON.
 
 Usage:
     python evaluate.py
-    python evaluate.py --weights weights/best.pt
+    python evaluate.py --weights ../models/yolov8-stenosis/best.pt
 """
 
 import argparse
@@ -12,13 +12,15 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate stenosis detection model")
     parser.add_argument(
         "--weights",
         type=str,
-        default="weights/best.pt",
+        default=str(ROOT_DIR / "models" / "yolov8-stenosis" / "best.pt"),
     )
     parser.add_argument("--data", type=str, default="dataset/data.yaml")
     parser.add_argument("--split", type=str, default="test")

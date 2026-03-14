@@ -28,7 +28,7 @@ def test_select_model_switches_active_card(client):
 
     health = client.get("/api/health")
     assert health.status_code == 200
-    assert "YOLO26n/weights/best.pt" in health.json()["modelPath"].replace("\\", "/")
+    assert "models/yolo26n/best.pt" in health.json()["modelPath"].replace("\\", "/")
 
 
 def test_get_patients_filtered_to_active_dataset(client):

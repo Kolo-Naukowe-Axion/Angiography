@@ -67,6 +67,8 @@ def main() -> int:
         raise FileNotFoundError(f"Test images directory does not exist: {test_images_dir}")
 
     device = torch.device(args.device if torch.cuda.is_available() and 'cuda' in args.device else 'cpu')
+    if device.type == 'cuda' and device.index is not None:
+        setting_config.gpu_id = str(device.index)
     model = _load_model(Path(args.pretrained_weight).resolve(), device)
 
     image_paths = sorted([p for p in test_images_dir.iterdir() if p.is_file()])

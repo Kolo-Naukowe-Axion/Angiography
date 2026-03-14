@@ -3,9 +3,12 @@
 ## Scope
 This flow trains full SAM-VMNet (`branch1 -> pred_masks -> branch2`) on ARCADE, with:
 - Cloud-side ARCADE download from Zenodo (`record 10390295`)
-- Leakage audit of official split
-- Auto-rebuild fallback (`patient` grouped) if leakage is detected
+- Leakage audit based on exact image-content overlap across splits
+- Auto-rebuild fallback (`patient` grouped) if strict leakage is detected
 - H100-oriented mixed precision defaults (`bf16`, TF32)
+
+Important: current Branch2 feature fusion in `models/vmunet/vmamba.py` is wired for `256x256`
+inputs (SAM feature map is pooled to `8x8` before fusion), so this pipeline keeps `input_size=256`.
 
 ## 1) Run Inside an Existing Vast Instance
 
@@ -44,11 +47,11 @@ bash scripts/vast_h100_execute_pipeline.sh <instance_id>
 
 ## 3) Key Outputs
 
-- Dataset root: `SAM_VMNet/data/vessel`
-- Leakage/index reports: `SAM_VMNet/data/vessel_meta`
+- Dataset root: `datasets/arcade/data/vessel`
+- Leakage/index reports: `datasets/arcade/data/vessel_meta`
 - Branch1 outputs: `SAM_VMNet/runs/branch1_h100`
 - Branch2 outputs: `SAM_VMNet/runs/branch2_h100`
-- Branch1 test predictions for branch2 features: `SAM_VMNet/data/vessel/test/pred_masks`
+- Branch1 test predictions for branch2 features: `datasets/arcade/data/vessel/test/pred_masks`
 
 ## 4) Failure Handling
 
@@ -62,7 +65,7 @@ bash scripts/vast_h100_execute_pipeline.sh <instance_id>
 
 3. Leakage audit failure:
 - With `AUDIT_POLICY=auto-rebuild`, split is rebuilt automatically.
-- Inspect `data/vessel_meta/final_split_audit.json`.
+- Inspect `datasets/arcade/data/vessel_meta/final_split_audit.json`.
 
 ## 5) Resume Strategy
 

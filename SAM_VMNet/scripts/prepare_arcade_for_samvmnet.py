@@ -2,11 +2,11 @@
 """Prepare ARCADE for SAM-VMNet training on cloud.
 
 Pipeline:
-1) Download ARCADE archive from Zenodo (unless --syntax-root is provided).
+1) Use the local `datasets/arcade/data` tree when available, otherwise download ARCADE from Zenodo (unless --syntax-root is provided).
 2) Audit official split for leakage.
 3) Optionally auto-rebuild split assignment if leakage is detected.
 4) Convert COCO polygons into binary vessel masks and build SAM-VMNet dataset:
-   data/vessel/{train,val,test}/{images,masks}
+   datasets/arcade/data/vessel/{train,val,test}/{images,masks}
 """
 
 from __future__ import annotations
@@ -24,6 +24,13 @@ from PIL import Image, ImageDraw
 
 from audit_arcade_split import SPLITS, FrameRecord, audit_records, load_records_from_syntax_root, write_index_csv, write_report
 from rebuild_arcade_split import reassign_records
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+ARCADE_ROOT = REPO_ROOT / "datasets" / "arcade"
+DEFAULT_LOCAL_SYNTAX_ROOT = ARCADE_ROOT / "data"
+DEFAULT_DOWNLOAD_ROOT = ARCADE_ROOT / "downloads"
+DEFAULT_OUTPUT_VESSEL_ROOT = ARCADE_ROOT / "data" / "vessel"
+DEFAULT_REPORT_DIR = ARCADE_ROOT / "data" / "vessel_meta"
 
 
 def fetch_zenodo_record(record_id: str) -> dict:
@@ -107,7 +114,7 @@ def _is_syntax_root(path: Path) -> bool:
 
 def discover_syntax_root(search_root: Path) -> Path:
     candidates: list[Path] = [search_root]
-    for rel in ("syntax", "arcade", "arcade/syntax"):
+    for rel in ("syntax", "data", "data/syntax", "arcade", "arcade/syntax"):
         candidates.append(search_root / rel)
 
     for candidate in candidates:
@@ -184,8 +191,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--syntax-root", type=Path, default=None, help="Use an existing ARCADE syntax root; skips download")
     parser.add_argument("--zenodo-record", type=str, default="10390295")
     parser.add_argument("--zenodo-file-key", type=str, default=None)
-    parser.add_argument("--download-root", type=Path, default=Path("data/downloads/arcade"))
-    parser.add_argument("--output-vessel-root", type=Path, default=Path("data/vessel"))
+    parser.add_argument("--download-root", type=Path, default=DEFAULT_DOWNLOAD_ROOT)
+    parser.add_argument("--output-vessel-root", type=Path, default=DEFAULT_OUTPUT_VESSEL_ROOT)
     parser.add_argument("--audit-policy", choices=("fail", "auto-rebuild"), default="auto-rebuild")
     parser.add_argument("--group-level", choices=("patient", "sequence"), default="patient")
     parser.add_argument("--train-ratio", type=float, default=0.667)
@@ -194,7 +201,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--report-dir", type=Path, default=Path("data/vessel_meta"))
+    parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
     return parser.parse_args()
 
 
@@ -206,6 +213,10 @@ def main() -> int:
     if args.syntax_root is not None:
         syntax_root = discover_syntax_root(args.syntax_root.resolve())
         source_info["mode"] = "existing-syntax-root"
+        source_info["syntax_root"] = str(syntax_root)
+    elif DEFAULT_LOCAL_SYNTAX_ROOT.exists():
+        syntax_root = discover_syntax_root(DEFAULT_LOCAL_SYNTAX_ROOT.resolve())
+        source_info["mode"] = "local-datasets-root"
         source_info["syntax_root"] = str(syntax_root)
     else:
         download_root = args.download_root.resolve()

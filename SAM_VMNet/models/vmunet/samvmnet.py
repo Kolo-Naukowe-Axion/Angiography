@@ -1,7 +1,6 @@
 from .vmamba import VSSM_SAM
 import torch
 from torch import nn
-from configs.config_setting import setting_config
 
 class SAMVMNet(nn.Module):
     def __init__(self,
@@ -16,18 +15,19 @@ class SAMVMNet(nn.Module):
 
         self.load_ckpt_path = load_ckpt_path
         self.num_classes = num_classes
-        gpu_id = setting_config.gpu_id
-        self.device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
         self.samvmnet = VSSM_SAM(in_chans=input_channels,
                            num_classes=num_classes,
                            depths=depths,
                            depths_decoder=depths_decoder,
                            drop_path_rate=drop_path_rate,
-                           ).to(self.device)
+                           )
 
     def forward(self, x, feature):
-        x = x.to(self.device)
-        feature = feature.to(self.device)
+        model_device = next(self.samvmnet.parameters()).device
+        if x.device != model_device:
+            x = x.to(model_device)
+        if feature.device != model_device:
+            feature = feature.to(model_device)
 
         if x.size()[1] == 1:
             x = x.repeat(1, 3, 1, 1)

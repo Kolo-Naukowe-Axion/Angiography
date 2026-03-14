@@ -10,10 +10,10 @@ AUDIT_POLICY="${AUDIT_POLICY:-auto-rebuild}"
 GROUP_LEVEL="${GROUP_LEVEL:-patient}"
 SEED="${SEED:-42}"
 
-DATA_ROOT="${DATA_ROOT:-${SCRIPT_DIR}/data}"
-DOWNLOAD_ROOT="${DOWNLOAD_ROOT:-${DATA_ROOT}/downloads/arcade}"
-VESSEL_ROOT="${VESSEL_ROOT:-${DATA_ROOT}/vessel}"
-REPORT_DIR="${REPORT_DIR:-${DATA_ROOT}/vessel_meta}"
+DATA_ROOT="${DATA_ROOT:-${SCRIPT_DIR}/../datasets/arcade}"
+DOWNLOAD_ROOT="${DOWNLOAD_ROOT:-${DATA_ROOT}/downloads}"
+VESSEL_ROOT="${VESSEL_ROOT:-${DATA_ROOT}/data/vessel}"
+REPORT_DIR="${REPORT_DIR:-${DATA_ROOT}/data/vessel_meta}"
 
 BRANCH1_EPOCHS="${BRANCH1_EPOCHS:-160}"
 BRANCH2_EPOCHS="${BRANCH2_EPOCHS:-160}"
@@ -24,7 +24,7 @@ AMP_DTYPE="${AMP_DTYPE:-bf16}"
 
 BRANCH1_WORK_DIR="${BRANCH1_WORK_DIR:-${SCRIPT_DIR}/runs/branch1_h100}"
 BRANCH2_WORK_DIR="${BRANCH2_WORK_DIR:-${SCRIPT_DIR}/runs/branch2_h100}"
-MEDSAM_PATH="${MEDSAM_PATH:-${SCRIPT_DIR}/pre_trained_weights/medsam_vit_b.pth}"
+MEDSAM_PATH="${MEDSAM_PATH:-${SCRIPT_DIR}/../models/sam_vmnet/medsam_vit_b.pth}"
 
 if [[ "${SKIP_SETUP}" != "1" ]]; then
   bash "${SCRIPT_DIR}/setup_vast.sh"

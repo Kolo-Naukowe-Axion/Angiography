@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
+DEFAULT_MODEL_PATH = ROOT_DIR / "models" / "yolo26s" / "best.pt"
 
 
 @dataclass(frozen=True)
@@ -21,7 +22,7 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         data_dir = Path(os.getenv("DEMO_DATA_DIR", ROOT_DIR / "demo-app/data/patients")).resolve()
-        model_path = Path(os.getenv("DEMO_MODEL_PATH", ROOT_DIR / "YOLO26s/weights/best.pt")).resolve()
+        model_path = Path(os.getenv("DEMO_MODEL_PATH", str(DEFAULT_MODEL_PATH))).resolve()
         cache_size = int(os.getenv("DEMO_CACHE_SIZE", "512"))
         min_infer_confidence = float(os.getenv("DEMO_MIN_INFER_CONFIDENCE", "0.10"))
         frontend_origin = os.getenv("DEMO_FRONTEND_ORIGIN", "http://127.0.0.1:5173")

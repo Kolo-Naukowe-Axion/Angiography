@@ -1,6 +1,9 @@
 dataset-arcade/
 dataset-mendeley/
 dataset-mix/
+datasets/arcade/
+datasets/cadica/
+.ipynb_checkpoints/
 
 demo-app/data/patients/*
 !demo-app/data/patients/manifest.json

@@ -44,7 +44,7 @@ Open `http://127.0.0.1:5173` when ready.
 - `DEMO_FRONTEND_PORT` (default `5173`)
 - `DEMO_API_HOST` (optional frontend API hostname; useful when `DEMO_HOST=0.0.0.0`)
 - `DEMO_DATA_DIR` (default `demo-app/data/patients`)
-- `DEMO_MODEL_PATH` (default `YOLO26s/weights/best.pt`)
+- `DEMO_MODEL_PATH` (default `models/yolo26s/best.pt`)
 - `DEMO_USE_MOCK_MODEL=1` to force mock inference
 - `DEMO_SOURCE_ROOT=/ABS/PATH` to auto-run Mendeley bbox patient data preparation when data is invalid/missing
 
@@ -56,7 +56,7 @@ The demo serves SAM-VMNet in **precomputed mask mode**.
 
 ```bash
 python3 demo-app/scripts/prepare_arcade_data.py \
-  --source-root /ABS/PATH/TO/ARCADE_OR_ARCADE_SYNTAX \
+  --source-root datasets/arcade/data \
   --output-root demo-app/data/patients
 ```
 
@@ -67,7 +67,7 @@ Defaults are medium curated size (`10` sequences, up to `240` frames/sequence), 
 ```bash
 python3 demo-app/scripts/precompute_sam_vmnet_masks.py \
   --data-root demo-app/data/patients \
-  --checkpoint SAM_VMNet/pre_trained_weights/best-epoch142-loss0.3230.pth
+  --checkpoint models/sam_vmnet/best-epoch142-loss0.3230.pth
 ```
 
 Use `--dry-run` to inspect eligible patients and `--overwrite` to regenerate masks.

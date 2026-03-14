@@ -1,6 +1,13 @@
+from pathlib import Path
+
 from torchvision import transforms
 from utils import *
 from datetime import datetime
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+MODEL_DIR = REPO_ROOT / 'models' / 'sam_vmnet'
+DATASET_DIR = REPO_ROOT / 'datasets' / 'arcade' / 'data' / 'vessel'
 
 class setting_config:
     """
@@ -15,14 +22,16 @@ class setting_config:
         'depths': [2,2,2,2],
         'depths_decoder': [2,2,2,1],
         'drop_path_rate': 0.2,
-        'load_ckpt_path': './pre_trained_weights/vmamba_tiny_e292.pth',
+        'load_ckpt_path': str(MODEL_DIR / 'vmamba_tiny_e292.pth'),
     }
     datasets = 'vessel'
-    data_path = './data/vessel/'
+    data_path = str(DATASET_DIR)
     criterion = BceDiceLoss(wb=1, wd=1)
 
     pretrained_path = './pre_trained/'
     num_classes = 1
+    # Keep 256x256 unless you also refactor VSSM_SAM feature fusion
+    # (models/vmunet/vmamba.py) which currently pools SAM features to 8x8.
     input_size_h = 256
     input_size_w = 256
     input_channels = 3
@@ -33,7 +42,7 @@ class setting_config:
     world_size = None
     rank = None
     amp = False
-    gpu_id = '7'
+    gpu_id = '0'
     batch_size = 1
     epochs = 300
 
@@ -46,7 +55,7 @@ class setting_config:
     only_test_and_save_figs = False
     best_ckpt_path = 'PATH_TO_YOUR_BEST_CKPT'
     img_save_path = 'PATH_TO_SAVE_IMAGES'
-    medsam_path = './pre_trained_weights/medsam_vit_b.pth'
+    medsam_path = str(MODEL_DIR / 'medsam_vit_b.pth')
     branch1_model_path = './results/checkpoints/best-epoch5-loss1.1194.pth'
 
     train_transformer = transforms.Compose([

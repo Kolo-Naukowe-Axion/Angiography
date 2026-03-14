@@ -10,14 +10,19 @@ import numpy as np
 from PIL import Image
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_DATA_ROOT = REPO_ROOT / "demo-app" / "data" / "patients"
+DEFAULT_CHECKPOINT_PATH = REPO_ROOT / "models" / "sam_vmnet" / "best-epoch142-loss0.3230.pth"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Precompute SAM-VMNet prediction masks for demo-app ARCADE patients.")
-    parser.add_argument("--data-root", type=Path, default=Path("demo-app/data/patients"))
+    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--model-id", type=str, default="sam_vmnet_arcade")
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path("SAM_VMNet/pre_trained_weights/best-epoch142-loss0.3230.pth"),
+        default=DEFAULT_CHECKPOINT_PATH,
     )
     parser.add_argument("--dataset-id", type=str, default="arcade")
     parser.add_argument("--threshold", type=float, default=0.5)
@@ -119,7 +124,7 @@ def main() -> None:
     data_root = args.data_root.resolve()
     manifest_path = data_root / "manifest.json"
     checkpoint_path = args.checkpoint.resolve()
-    repo_root = Path(__file__).resolve().parents[2]
+    repo_root = REPO_ROOT
 
     manifest = load_manifest(manifest_path)
     patients = manifest.get("patients", []) if isinstance(manifest.get("patients", []), list) else []

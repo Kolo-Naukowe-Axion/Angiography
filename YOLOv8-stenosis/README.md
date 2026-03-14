@@ -146,12 +146,12 @@ pip install -r requirements.txt
 
 ```bash
 # CLI
-yolo predict model=weights/best.pt source=your_image.png conf=0.25
+yolo predict model=../models/yolov8-stenosis/best.pt source=your_image.png conf=0.25
 
 # Python
 from ultralytics import YOLO
 
-model = YOLO("weights/best.pt")
+model = YOLO("../models/yolov8-stenosis/best.pt")
 results = model.predict("your_image.png", conf=0.25)
 
 for r in results:
@@ -166,7 +166,7 @@ for r in results:
 ```python
 from ultralytics import YOLO
 
-model = YOLO("weights/best.onnx")
+model = YOLO("../models/yolov8-stenosis/best.onnx")
 results = model.predict("your_image.png")
 ```
 
@@ -183,13 +183,13 @@ python scripts/prepare_split.py --images path/to/images --labels path/to/labels 
 python train.py --batch 64 --imgsz 512 --device 0
 
 # 4. Evaluate on test set
-python evaluate.py --weights weights/best.pt
+python evaluate.py --weights ../models/yolov8-stenosis/best.pt
 
 # 5. Benchmark inference speed
-python scripts/benchmark_speed.py --weights weights/best.pt
+python scripts/benchmark_speed.py --weights ../models/yolov8-stenosis/best.pt
 
 # 6. Export to ONNX
-yolo export model=weights/best.pt format=onnx imgsz=512 simplify=True
+yolo export model=../models/yolov8-stenosis/best.pt format=onnx imgsz=512 simplify=True
 ```
 
 ## Project Structure
@@ -206,7 +206,7 @@ coronary-stenosis-yolov8/
 │   ├── prepare_split.py         # Stratified train/val/test split
 │   ├── visualize_results.py     # Prediction visualization
 │   └── benchmark_speed.py       # Inference speed benchmark
-├── weights/
+├── ../models/yolov8-stenosis/
 │   ├── best.pt                  # Trained weights (50 MB)
 │   └── best.onnx                # ONNX export (112 MB)
 └── results/

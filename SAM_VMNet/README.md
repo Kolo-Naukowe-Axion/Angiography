@@ -31,7 +31,7 @@ The .whl files of mamba_ssm could be found [here](https://github.com/state-space
 
 ## 1. Download the pre-trained weights
 
-Download the following files from Google Drive and place them in the `./pre_trained_weights` directory:
+Download the following files from Google Drive and place them in the repository-root `models/sam_vmnet` directory (`../models/sam_vmnet/` from inside `SAM_VMNet/`):
 
 - [vmamba_small_e238_ema.pth](https://drive.google.com/file/d/1XL7JuacjoZCr8w2b0c8CaQn8b0hREblk/view?usp=drive_link)
 
@@ -45,10 +45,10 @@ Download the following files from Google Drive and place them in the `./pre_trai
 
 Download the ARCADE from [zenodo](https://zenodo.org/records/10390295).
 
-After downloading the datasets, you are supposed to put them into `./data/vessel/` and the file format reference is as follows.
+Keep the raw ARCADE split data under `../datasets/arcade/data/syntax/`, and prepare the binary-mask training dataset under `../datasets/arcade/data/vessel/`. The expected vessel dataset layout is:
 
 ```
-- './data/vessel/'
+- '../datasets/arcade/data/vessel/'
   - train
     - images
       - .png
@@ -250,4 +250,3 @@ year = {2025}
 ---
 
 For any questions or issues, please open an issue on this repository.
-
