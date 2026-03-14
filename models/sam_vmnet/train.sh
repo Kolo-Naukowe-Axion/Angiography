@@ -1,7 +1,7 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_PATH="${DATA_PATH:-${SCRIPT_DIR}/../datasets/arcade/data/vessel}"
+DATA_PATH="${DATA_PATH:-${SCRIPT_DIR}/../../datasets/arcade/data/vessel}"
 WORK_DIR="${WORK_DIR:-${SCRIPT_DIR}/result_branch2}"
-MEDSAM_PATH="${MEDSAM_PATH:-${SCRIPT_DIR}/../models/sam_vmnet/medsam_vit_b.pth}"
+MEDSAM_PATH="${MEDSAM_PATH:-${SCRIPT_DIR}/pre_trained_weights/medsam_vit_b.pth}"
 BRANCH1_MODEL_PATH="${BRANCH1_MODEL_PATH:-${SCRIPT_DIR}/result_branch1/checkpoints/best-epoch160-loss0.2211.pth}"
 
 # ==========================================

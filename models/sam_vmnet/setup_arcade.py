@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 ARCADE_DIR = REPO_ROOT / "datasets" / "arcade" / "data" / "syntax"
 OUTPUT_DIR = REPO_ROOT / "datasets" / "arcade" / "data" / "vessel"
 SPLITS = ["train", "val", "test"]

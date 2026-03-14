@@ -13,7 +13,7 @@ inputs (SAM feature map is pooled to `8x8` before fusion), so this pipeline keep
 ## 1) Run Inside an Existing Vast Instance
 
 ```bash
-cd /workspace/Angiography/SAM_VMNet
+cd /workspace/Angiography/models/sam_vmnet
 bash run_vast_h100_pipeline.sh
 ```
 
@@ -38,7 +38,7 @@ These scripts are optional convenience wrappers.
 
 ```bash
 # Launch a new H100 instance (requires vastai CLI + API key)
-cd /path/to/Angiography/SAM_VMNet
+cd /path/to/Angiography/models/sam_vmnet
 bash scripts/vast_h100_launch.sh
 
 # Run pipeline on an existing instance
@@ -49,8 +49,8 @@ bash scripts/vast_h100_execute_pipeline.sh <instance_id>
 
 - Dataset root: `datasets/arcade/data/vessel`
 - Leakage/index reports: `datasets/arcade/data/vessel_meta`
-- Branch1 outputs: `SAM_VMNet/runs/branch1_h100`
-- Branch2 outputs: `SAM_VMNet/runs/branch2_h100`
+- Branch1 outputs: `models/sam_vmnet/runs/branch1_h100`
+- Branch2 outputs: `models/sam_vmnet/runs/branch2_h100`
 - Branch1 test predictions for branch2 features: `datasets/arcade/data/vessel/test/pred_masks`
 
 ## 4) Failure Handling

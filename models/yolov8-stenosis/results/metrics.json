@@ -1,5 +1,5 @@
 {
-  "model": "../models/yolov8-stenosis/best.pt",
+  "model": "weights/best.pt",
   "split": "test",
   "mAP50": 0.7838918423135655,
   "mAP50-95": 0.4159826959940002,

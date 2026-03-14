@@ -12,7 +12,7 @@ from PIL import Image
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA_ROOT = REPO_ROOT / "demo-app" / "data" / "patients"
-DEFAULT_CHECKPOINT_PATH = REPO_ROOT / "models" / "sam_vmnet" / "best-epoch142-loss0.3230.pth"
+DEFAULT_CHECKPOINT_PATH = REPO_ROOT / "models" / "sam_vmnet" / "pre_trained_weights" / "best-epoch142-loss0.3230.pth"
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,9 +51,9 @@ def resolve_device(torch_module, requested: str):
 
 
 def load_model(repo_root: Path, checkpoint_path: Path, requested_device: str):
-    sam_repo = (repo_root / "SAM_VMNet").resolve()
+    sam_repo = (repo_root / "models" / "sam_vmnet").resolve()
     if not sam_repo.exists():
-        raise FileNotFoundError(f"SAM_VMNet directory not found at {sam_repo}")
+        raise FileNotFoundError(f"SAM-VMNet package directory not found at {sam_repo}")
 
     sys.path.insert(0, str(sam_repo))
 
@@ -63,8 +63,8 @@ def load_model(repo_root: Path, checkpoint_path: Path, requested_device: str):
         from models.vmunet.vmunet import VMUNet
     except Exception as error:  # pragma: no cover - runtime dependency check
         raise RuntimeError(
-            "Failed to import SAM_VMNet runtime dependencies. "
-            "Install SAM_VMNet requirements in the environment used to run this script."
+            "Failed to import SAM-VMNet runtime dependencies. "
+            "Install models/sam_vmnet requirements in the environment used to run this script."
         ) from error
 
     if not checkpoint_path.exists():

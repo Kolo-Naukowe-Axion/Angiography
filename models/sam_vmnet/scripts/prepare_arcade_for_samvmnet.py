@@ -25,7 +25,7 @@ from PIL import Image, ImageDraw
 from audit_arcade_split import SPLITS, FrameRecord, audit_records, load_records_from_syntax_root, write_index_csv, write_report
 from rebuild_arcade_split import reassign_records
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 ARCADE_ROOT = REPO_ROOT / "datasets" / "arcade"
 DEFAULT_LOCAL_SYNTAX_ROOT = ARCADE_ROOT / "data"
 DEFAULT_DOWNLOAD_ROOT = ARCADE_ROOT / "downloads"

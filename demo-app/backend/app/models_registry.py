@@ -9,9 +9,9 @@ SAM_VMNET_MODEL_ID = "sam_vmnet_arcade"
 MODELS_DIR = ROOT_DIR / "models"
 
 MODEL_PATHS = {
-    "yolo26s": (MODELS_DIR / "yolo26s" / "best.pt").resolve(),
-    "yolo26n": (MODELS_DIR / "yolo26n" / "best.pt").resolve(),
-    SAM_VMNET_MODEL_ID: (MODELS_DIR / "sam_vmnet" / "best-epoch142-loss0.3230.pth").resolve(),
+    "yolo26s": (MODELS_DIR / "yolo26s" / "weights" / "best.pt").resolve(),
+    "yolo26n": (MODELS_DIR / "yolo26n" / "weights" / "best.pt").resolve(),
+    SAM_VMNET_MODEL_ID: (MODELS_DIR / "sam_vmnet" / "pre_trained_weights" / "best-epoch142-loss0.3230.pth").resolve(),
 }
 
 MODEL_ORDER = ["yolo26s", "yolo26n", SAM_VMNET_MODEL_ID]

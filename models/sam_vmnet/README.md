@@ -31,7 +31,7 @@ The .whl files of mamba_ssm could be found [here](https://github.com/state-space
 
 ## 1. Download the pre-trained weights
 
-Download the following files from Google Drive and place them in the repository-root `models/sam_vmnet` directory (`../models/sam_vmnet/` from inside `SAM_VMNet/`):
+Download the following files from Google Drive and place them in `models/sam_vmnet/pre_trained_weights/`.
 
 - [vmamba_small_e238_ema.pth](https://drive.google.com/file/d/1XL7JuacjoZCr8w2b0c8CaQn8b0hREblk/view?usp=drive_link)
 

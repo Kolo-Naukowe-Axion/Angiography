@@ -5,7 +5,7 @@ set -euo pipefail
 # Usage: ./scripts/vast_h100_execute_pipeline.sh <instance_id>
 
 INSTANCE_ID="${1:-}"
-REMOTE_CMD="${REMOTE_CMD:-cd /workspace/Angiography/SAM_VMNet && bash run_vast_h100_pipeline.sh}"
+REMOTE_CMD="${REMOTE_CMD:-cd /workspace/Angiography/models/sam_vmnet && bash run_vast_h100_pipeline.sh}"
 
 if [[ -z "${INSTANCE_ID}" ]]; then
   echo "Usage: $0 <instance_id>"

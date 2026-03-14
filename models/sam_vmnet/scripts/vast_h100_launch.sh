@@ -7,7 +7,7 @@ set -euo pipefail
 QUERY="${QUERY:-gpu_name~'H100 SXM'}"
 IMAGE="${IMAGE:-nvidia/cuda:12.4.1-cudnn-devel-ubuntu22.04}"
 DISK_GB="${DISK_GB:-120}"
-ONSTART_CMD="${ONSTART_CMD:-cd /workspace/Angiography/SAM_VMNet && bash run_vast_h100_pipeline.sh}"
+ONSTART_CMD="${ONSTART_CMD:-cd /workspace/Angiography/models/sam_vmnet && bash run_vast_h100_pipeline.sh}"
 
 if ! command -v vastai >/dev/null 2>&1; then
   echo "vastai CLI not found. Install first: pip install vastai"

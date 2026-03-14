@@ -5,8 +5,9 @@ from utils import *
 from datetime import datetime
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-MODEL_DIR = REPO_ROOT / 'models' / 'sam_vmnet'
+PACKAGE_DIR = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[3]
+MODEL_DIR = PACKAGE_DIR / 'pre_trained_weights'
 DATASET_DIR = REPO_ROOT / 'datasets' / 'arcade' / 'data' / 'vessel'
 
 class setting_config:

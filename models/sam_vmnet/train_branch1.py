@@ -1,49 +1,39 @@
 import torch
 from torch.utils.data import DataLoader
 import timm
-import time
+from dataset import Branch1_datasets
+from tensorboardX import SummaryWriter
+from models.vmunet.vmunet import VMUNet
+from engine_branch1 import *
 import os
 import sys
+from utils import *
+from configs.config_setting import setting_config
+import warnings
 import argparse
 from pathlib import Path
 
-from dataset import Branch2_datasets
-from tensorboardX import SummaryWriter
-from models.vmunet.samvmnet import SAMVMNet
-from engine_branch2 import *
-from feature_processor import process_images
-
-import matplotlib.pyplot as plt
-
-from utils import *
-from configs.config_setting import setting_config
-import shutil
-import warnings
-
 warnings.filterwarnings("ignore")
-DEFAULT_DATA_PATH = str(Path(__file__).resolve().parents[1] / "datasets" / "arcade" / "data" / "vessel")
+DEFAULT_DATA_PATH = str(Path(__file__).resolve().parents[2] / "datasets" / "arcade" / "data" / "vessel")
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train Branch2')
+    parser = argparse.ArgumentParser(description='Train Branch1')
     parser.add_argument('--batch_size', type=int, default=4, help='batch size')
     parser.add_argument('--gpu_id', type=str, default='0', help='GPU ID')
     parser.add_argument('--epochs', type=int, default=100, help='training epochs')
-    parser.add_argument('--work_dir', type=str, default='./work_dir/branch2', help='work directory')
+    parser.add_argument('--work_dir', type=str, default='./work_dir/branch1', help='work directory')
     parser.add_argument('--data_path', type=str, default=DEFAULT_DATA_PATH, help='data path')
-    parser.add_argument('--medsam_path', type=str, required=True, help='path to MedSAM model')
-    parser.add_argument('--branch1_model_path', type=str, required=True, help='path to trained Branch1 model')
     parser.add_argument('--num_workers', type=int, default=4, help='dataloader workers')
     parser.add_argument('--amp', action=argparse.BooleanOptionalAction, default=True, help='enable mixed precision')
     parser.add_argument('--amp_dtype', choices=('bf16', 'fp16'), default='bf16')
     parser.add_argument('--grad_accum_steps', type=int, default=1, help='gradient accumulation steps')
     parser.add_argument('--tf32', action=argparse.BooleanOptionalAction, default=True, help='enable TF32 on Ampere+ GPUs')
-    parser.add_argument('--test_mask_subdir', type=str, default='pred_masks', help='mask folder used for test feature extraction')
     return parser.parse_args()
 
 
 def main(config, args):
-
+    print('#----------Creating logger----------#')
     config.work_dir = args.work_dir
     config.data_path = os.path.join(args.data_path, '')
     config.batch_size = args.batch_size
@@ -54,28 +44,6 @@ def main(config, args):
     config.amp_dtype = args.amp_dtype
     config.grad_accum_steps = max(1, args.grad_accum_steps)
 
-    medsam_model_path = args.medsam_path
-    branch1_model_path = args.branch1_model_path
-    config.medsam_path = medsam_model_path
-    config.branch1_model_path = branch1_model_path
-    if not os.path.exists(medsam_model_path):
-        raise FileNotFoundError(f"MedSAM checkpoint not found: {medsam_model_path}")
-    if not os.path.exists(branch1_model_path):
-        raise FileNotFoundError(f"Branch1 checkpoint not found: {branch1_model_path}")
-
-    print('#----------GPU init----------#')
-    gpu_id = int(config.gpu_id)
-    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
-    if torch.cuda.is_available():
-        torch.backends.cuda.matmul.allow_tf32 = args.tf32
-        torch.backends.cudnn.allow_tf32 = args.tf32
-    set_seed(config.seed)
-    torch.cuda.empty_cache()
-
-    print('#----------Processing images----------#')
-    process_images(config.data_path, medsam_model_path, device=device, test_mask_subdir=args.test_mask_subdir)
-
-    print('#----------Creating logger----------#')
     sys.path.append(config.work_dir + '/')
     log_dir = os.path.join(config.work_dir, 'log')
     checkpoint_dir = os.path.join(config.work_dir, 'checkpoints')
@@ -93,15 +61,24 @@ def main(config, args):
 
     log_config_info(config, logger)
 
+    print('#----------GPU init----------#')
+    gpu_id = int(config.gpu_id)
+    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = args.tf32
+        torch.backends.cudnn.allow_tf32 = args.tf32
+    set_seed(config.seed)
+    torch.cuda.empty_cache()
+
     print('#----------Preparing dataset----------#')
-    train_dataset = Branch2_datasets(config.data_path, config, train=True)
+    train_dataset = Branch1_datasets(config.data_path, config, train=True)
     train_loader = DataLoader(train_dataset,
                               batch_size=config.batch_size,
                               shuffle=True,
                               pin_memory=True,
                               num_workers=config.num_workers,
                               persistent_workers=config.num_workers > 0)
-    val_dataset = Branch2_datasets(config.data_path, config, train=False)
+    val_dataset = Branch1_datasets(config.data_path, config, train=False)
     val_loader = DataLoader(val_dataset,
                             batch_size=1,
                             shuffle=False,
@@ -109,18 +86,19 @@ def main(config, args):
                             num_workers=config.num_workers,
                             persistent_workers=config.num_workers > 0,
                             drop_last=True)
-    test_dataset = Branch2_datasets(config.data_path, config, train=False, test=True)
-    test_loader = DataLoader(test_dataset,
-                            batch_size=1,
-                            shuffle=False,
-                            pin_memory=True,
-                            num_workers=config.num_workers,
-                            persistent_workers=config.num_workers > 0,
-                            drop_last=True)
 
-    print('#----------Prepareing Model----------#')
+    test_dataset = Branch1_datasets(config.data_path, config, train=False, test=True)
+    test_loader = DataLoader(test_dataset,
+                             batch_size=1,
+                             shuffle=False,
+                             pin_memory=True,
+                             num_workers=config.num_workers,
+                             persistent_workers=config.num_workers > 0,
+                             drop_last=True)
+
+    print('#----------Prepareing Pure VM-UNet----------#')
     model_cfg = config.model_config
-    model = SAMVMNet(
+    model = VMUNet(
         num_classes=model_cfg['num_classes'],
         input_channels=model_cfg['input_channels'],
         depths=model_cfg['depths'],
@@ -128,11 +106,10 @@ def main(config, args):
         drop_path_rate=model_cfg['drop_path_rate'],
         load_ckpt_path=model_cfg['load_ckpt_path'],
     )
-
     model.load_from()
     model = model.to(device)
 
-    cal_params_flops_branch2(model, 256, logger)
+    cal_params_flops(model, 256, logger)
 
     print('#----------Prepareing loss, opt, sch and amp----------#')
     criterion = config.criterion
@@ -159,14 +136,12 @@ def main(config, args):
         logger.info(log_info)
 
     step = 0
-    train_losses = []
-    val_losses = []
     print('#----------Training----------#')
     for epoch in range(start_epoch, config.epochs + 1):
 
         torch.cuda.empty_cache()
 
-        step, train_loss = train_one_epoch(
+        step = train_one_epoch(
             train_loader,
             model,
             criterion,
@@ -180,7 +155,7 @@ def main(config, args):
             device,
             scaler=scaler,
         )
-        train_losses.append(train_loss)
+
         loss = val_one_epoch(
             val_loader,
             model,
@@ -190,7 +165,7 @@ def main(config, args):
             config,
             device
         )
-        val_losses.append(loss)
+
         if loss < min_loss:
             torch.save(model.state_dict(), os.path.join(checkpoint_dir, 'best.pth'))
             min_loss = loss
@@ -223,7 +198,6 @@ def main(config, args):
             os.path.join(checkpoint_dir, 'best.pth'),
             os.path.join(checkpoint_dir, f'best-epoch{min_epoch}-loss{min_loss:.4f}.pth')
         )
-    return train_losses, val_losses
 
 
 if __name__ == '__main__':
