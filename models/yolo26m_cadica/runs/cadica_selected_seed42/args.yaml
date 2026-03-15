@@ -1,6 +1,6 @@
 task: detect
 mode: train
-model: yolo26m.pt
+model: models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt
 data: /Users/iwosmura/projects/angio-demo/Angiography/datasets/cadica/derived/yolo26_selected_seed42/data.yaml
 epochs: 300
 time: null
@@ -11,7 +11,7 @@ save: true
 save_period: -1
 cache: false
 device: mps
-workers: 4
+workers: 0
 project: /Users/iwosmura/projects/angio-demo/Angiography/models/yolo26m/runs
 name: cadica_selected_seed42
 exist_ok: false
@@ -24,7 +24,7 @@ single_cls: false
 rect: false
 cos_lr: false
 close_mosaic: 10
-resume: false
+resume: models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt
 amp: false
 fraction: 1.0
 profile: false
@@ -106,4 +106,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: /Users/iwosmura/projects/angio-demo/Angiography/models/yolo26m/runs/cadica_selected_seed42
+save_dir: /Users/iwosmura/projects/angio-demo/Angiography/models/yolo26m_cadica/runs/cadica_selected_seed42

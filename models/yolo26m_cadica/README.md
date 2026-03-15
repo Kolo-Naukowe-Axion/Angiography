@@ -122,6 +122,7 @@ Current run state:
 - Training was started locally on Apple Silicon.
 - The run was then stopped gracefully to avoid power issues while the laptop was on a weaker charger.
 - The latest checkpoint was preserved and the run is resumable.
+- Training has since been resumed from `last.pt`.
 
 Checkpoint files:
 
@@ -154,6 +155,16 @@ Latest logged validation metrics at **epoch 17**:
 | Recall | 0.24906 |
 | mAP@0.50 | 0.08231 |
 | mAP@0.50:0.95 | 0.02642 |
+
+Latest computed validation mIoU from `last.pt` at **epoch 17**:
+
+| Metric | Value |
+|---|---:|
+| mean IoU | 0.66851 |
+| Matched pairs | 29 |
+| Ground-truth boxes | 534 |
+| Predicted boxes | 121 |
+| Images | 634 |
 
 Interpretation of the current state:
 
@@ -222,6 +233,33 @@ python models/yolo26m_cadica/train.py \
 ```bash
 python models/yolo26m_cadica/train.py \
   --resume models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt
+```
+
+### 6. Watch labeled training metrics
+
+```bash
+python3 models/yolo26m_cadica/scripts/watch_results.py --follow
+```
+
+### 7. Compute mIoU for a checkpoint
+
+```bash
+python models/yolo26m_cadica/scripts/compute_mean_iou.py \
+  --weights models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt \
+  --data datasets/cadica/derived/yolo26_selected_seed42/data.yaml \
+  --split val \
+  --device mps \
+  --output models/yolo26m_cadica/runs/cadica_selected_seed42/current_iou.json
+```
+
+### 8. Track mIoU periodically during training
+
+```bash
+python models/yolo26m_cadica/scripts/periodic_iou_eval.py \
+  --run-dir models/yolo26m_cadica/runs/cadica_selected_seed42 \
+  --data datasets/cadica/derived/yolo26_selected_seed42/data.yaml \
+  --device mps \
+  --every 5
 ```
 
 ## Notes For The Next Update
