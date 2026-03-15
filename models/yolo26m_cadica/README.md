@@ -1,8 +1,6 @@
 # YOLO26m on CADICA
 
-This folder documents the CADICA-specific YOLO26m training workflow and the current state of the run so far.
-
-The runnable preparation and training code currently lives under `models/yolo26m/`. This documentation exists separately so the CADICA experiment has one model-specific place where the data adjustments, training decisions, checkpoints, and results are described together.
+This folder contains the CADICA-specific YOLO26m training workflow and the current state of the run so far.
 
 ## Objective
 
@@ -81,7 +79,7 @@ Split policy notes:
 
 The current run was started from:
 
-- `models/yolo26m/train.py`
+- `models/yolo26m_cadica/train.py`
 
 Resolved training arguments for the current run:
 
@@ -97,7 +95,7 @@ Resolved training arguments for the current run:
 - `lrf=0.01`
 - `patience=50`
 - `amp=false`
-- `project=/Users/iwosmura/projects/angio-demo/Angiography/models/yolo26m/runs`
+- `project=/Users/iwosmura/projects/angio-demo/Angiography/models/yolo26m_cadica/runs`
 - `name=cadica_selected_seed42`
 
 Augmentations in the current run:
@@ -117,7 +115,7 @@ Augmentations in the current run:
 
 Run directory:
 
-- `models/yolo26m/runs/cadica_selected_seed42`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42`
 
 Current run state:
 
@@ -127,8 +125,8 @@ Current run state:
 
 Checkpoint files:
 
-- Best weights so far: `models/yolo26m/runs/cadica_selected_seed42/weights/best.pt`
-- Latest resumable checkpoint: `models/yolo26m/runs/cadica_selected_seed42/weights/last.pt`
+- Best weights so far: `models/yolo26m_cadica/runs/cadica_selected_seed42/weights/best.pt`
+- Latest resumable checkpoint: `models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt`
 
 Checkpoint timestamps:
 
@@ -169,14 +167,14 @@ Interpretation of the current state:
 
 Current run artifacts already on disk:
 
-- `models/yolo26m/runs/cadica_selected_seed42/args.yaml`
-- `models/yolo26m/runs/cadica_selected_seed42/results.csv`
-- `models/yolo26m/runs/cadica_selected_seed42/labels.jpg`
-- `models/yolo26m/runs/cadica_selected_seed42/train_batch0.jpg`
-- `models/yolo26m/runs/cadica_selected_seed42/train_batch1.jpg`
-- `models/yolo26m/runs/cadica_selected_seed42/train_batch2.jpg`
-- `models/yolo26m/runs/cadica_selected_seed42/weights/best.pt`
-- `models/yolo26m/runs/cadica_selected_seed42/weights/last.pt`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/args.yaml`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/results.csv`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/labels.jpg`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/train_batch0.jpg`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/train_batch1.jpg`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/train_batch2.jpg`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/weights/best.pt`
+- `models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt`
 
 These artifacts are enough to:
 
@@ -193,13 +191,13 @@ These artifacts are enough to:
 cd /Users/iwosmura/projects/angio-demo/Angiography
 uv venv --python 3.12 .venv-yolo26m
 source .venv-yolo26m/bin/activate
-uv pip install -r models/yolo26m/requirements-macos.txt
+uv pip install -r models/yolo26m_cadica/requirements-macos.txt
 ```
 
 ### 2. Prepare the CADICA YOLO dataset
 
 ```bash
-python models/yolo26m/scripts/prepare_cadica_selected.py \
+python models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
   --cadica-root datasets/cadica/CADICA \
   --split-manifest datasets/cadica/CADICA/splits/patient_level_80_10_10_seed42/manifest.json \
   --output-root datasets/cadica/derived/yolo26_selected_seed42
@@ -208,22 +206,22 @@ python models/yolo26m/scripts/prepare_cadica_selected.py \
 ### 3. Verify the prepared dataset
 
 ```bash
-python models/yolo26m/scripts/verify_cadica_selected.py \
+python models/yolo26m_cadica/scripts/verify_cadica_selected.py \
   --dataset-root datasets/cadica/derived/yolo26_selected_seed42
 ```
 
 ### 4. Start training
 
 ```bash
-python models/yolo26m/train.py \
+python models/yolo26m_cadica/train.py \
   --data datasets/cadica/derived/yolo26_selected_seed42/data.yaml
 ```
 
 ### 5. Resume the interrupted run
 
 ```bash
-python models/yolo26m/train.py \
-  --resume models/yolo26m/runs/cadica_selected_seed42/weights/last.pt
+python models/yolo26m_cadica/train.py \
+  --resume models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt
 ```
 
 ## Notes For The Next Update

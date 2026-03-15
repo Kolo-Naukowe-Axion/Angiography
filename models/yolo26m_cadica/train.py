@@ -6,7 +6,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DATA = REPO_ROOT / "datasets" / "cadica" / "derived" / "yolo26_selected_seed42" / "data.yaml"
-DEFAULT_PROJECT = REPO_ROOT / "models" / "yolo26m" / "runs"
+DEFAULT_PROJECT = REPO_ROOT / "models" / "yolo26m_cadica" / "runs"
 DEFAULT_RUN_NAME = "cadica_selected_seed42"
 
 
@@ -49,7 +49,7 @@ def main() -> None:
     except ImportError as error:
         raise SystemExit(
             "Ultralytics is not installed in this environment. "
-            "Create the uv env from models/yolo26m/README.md and reinstall dependencies."
+            "Create the uv env from models/yolo26m_cadica/README.md and reinstall dependencies."
         ) from error
 
     if args.resume is not None:

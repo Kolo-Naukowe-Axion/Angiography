@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from models.yolo26m.scripts.cadica_selected_utils import (
+from models.yolo26m_cadica.scripts.cadica_selected_utils import (
     bbox_xywh_to_yolo,
     build_expected_split_index,
     iter_frame_samples,
