@@ -14,9 +14,13 @@ IOU_EVERY="${IOU_EVERY:-10}"
 cd "${ROOT_DIR}"
 
 python3 -m pip install -r models/yolo26x/requirements-vast.txt
-python3 models/yolo26m_cadica/scripts/verify_cadica_selected.py --dataset-root datasets/cadica/derived/yolo26_selected_seed42
+python3 models/yolo26x/scripts/rewrite_data_yaml.py --dataset-root datasets/cadica/derived/yolo26_selected_seed42
+python3 models/yolo26x/scripts/verify_prepared_dataset.py --dataset-root datasets/cadica/derived/yolo26_selected_seed42
 
 mkdir -p "${RUN_DIR}"
+rm -f "${RUN_DIR}/results.csv" "${RUN_DIR}/iou_metrics.csv" "${RUN_DIR}/train.log" "${RUN_DIR}/periodic_iou.log"
+rm -f "${RUN_DIR}/train.pid" "${RUN_DIR}/periodic_iou.pid"
+rm -rf "${RUN_DIR}/weights"
 
 nohup python3 -u models/yolo26x/train.py \
   --data "${DATA_YAML}" \

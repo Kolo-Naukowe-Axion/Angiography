@@ -123,6 +123,7 @@ def main() -> None:
         cache=cache,
         project=str(args.project.resolve()),
         name=args.name,
+        exist_ok=True,
         plots=True,
     )
 
