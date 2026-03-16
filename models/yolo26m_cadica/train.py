@@ -15,19 +15,47 @@ def detect_device() -> str:
         import torch
     except ImportError:
         return "cpu"
+    if torch.cuda.is_available():
+        return "0"
     if torch.backends.mps.is_available():
         return "mps"
     return "cpu"
 
 
-def main() -> None:
+def default_batch_for_device(device: str) -> int:
+    return 64 if device not in {"cpu", "mps"} else 4
+
+
+def default_workers_for_device(device: str) -> int:
+    if device == "cpu":
+        return 2
+    if device == "mps":
+        return 2
+    return 8
+
+
+def default_cache_for_device(device: str) -> bool:
+    return device not in {"cpu", "mps"}
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train YOLO26m on the prepared CADICA dataset.")
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
     parser.add_argument("--model", type=str, default="yolo26m.pt")
     parser.add_argument("--epochs", type=int, default=300)
-    parser.add_argument("--batch", type=int, default=16)
+    parser.add_argument(
+        "--batch",
+        type=int,
+        default=None,
+        help="Training batch size. Defaults to 64 on CUDA and 4 on Apple Silicon / CPU.",
+    )
     parser.add_argument("--imgsz", type=int, default=512)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Data loader workers. Defaults to 8 on CUDA and 2 on Apple Silicon / CPU.",
+    )
     parser.add_argument("--patience", type=int, default=50)
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--project", type=Path, default=DEFAULT_PROJECT)
@@ -39,10 +67,24 @@ def main() -> None:
         default=None,
         help="Enable mixed precision. Defaults to off on MPS and on elsewhere.",
     )
+    parser.add_argument(
+        "--cache",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Cache images in RAM. Defaults to on for CUDA and off on Apple Silicon / CPU.",
+    )
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     device = args.device or detect_device()
     amp = args.amp if args.amp is not None else device != "mps"
+    batch = args.batch if args.batch is not None else default_batch_for_device(device)
+    workers = args.workers if args.workers is not None else default_workers_for_device(device)
+    cache = args.cache if args.cache is not None else default_cache_for_device(device)
 
     try:
         from ultralytics import YOLO
@@ -54,7 +96,14 @@ def main() -> None:
 
     if args.resume is not None:
         model = YOLO(str(args.resume))
-        model.train(resume=True)
+        model.train(
+            resume=True,
+            device=device,
+            batch=batch,
+            workers=workers,
+            amp=amp,
+            cache=cache,
+        )
         return
 
     data_path = args.data.resolve()
@@ -84,8 +133,10 @@ def main() -> None:
         mixup=0.1,
         device=device,
         amp=amp,
+        cache=cache,
         project=str(args.project.resolve()),
         name=args.name,
+        exist_ok=True,
         plots=True,
     )
 

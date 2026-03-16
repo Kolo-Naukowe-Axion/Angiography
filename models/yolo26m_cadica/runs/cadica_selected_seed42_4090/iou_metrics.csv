@@ -1,0 +1,2 @@
+epoch,split,mean_iou,matched_pairs,gt_boxes,pred_boxes,images,weights
+40,val,0.698357,23,534,81,634,/workspace/Angiography/models/yolo26m_cadica/runs/cadica_selected_seed42_4090/weights/last.pt

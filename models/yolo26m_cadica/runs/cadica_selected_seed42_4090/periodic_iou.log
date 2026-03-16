@@ -1,0 +1,1 @@
+[periodic_iou_eval] epoch=40 split=val mean_iou=0.6984 matched_pairs=23
