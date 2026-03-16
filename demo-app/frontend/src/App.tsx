@@ -8,20 +8,17 @@ import {
   getPatients,
   inferFrame,
   prefetchFrames,
-  resolveApiUrl,
   saveLabels,
   selectModel,
 } from "./api";
-import { computeFrameMetrics, computeMaskMetricsFromUrls } from "./metrics";
-import type { MaskMetrics, MetricValue } from "./metrics";
+import { computeFrameMetrics } from "./metrics";
+import type { MetricValue } from "./metrics";
 import type {
   Box,
   GroundTruthBoxInput,
   HealthResponse,
   InferFrameResponse,
-  LabelType,
   LabelsResponse,
-  MaskPayload,
   ModelCard,
   PatientSummary,
 } from "./types";
@@ -37,9 +34,7 @@ type Dimensions = {
 
 type FrameLabels = {
   hasLabels: boolean;
-  labelType: LabelType;
   boxes: Box[];
-  mask: MaskPayload | null;
 };
 
 type DraftBox = {
@@ -57,15 +52,8 @@ type DisplayRect = {
   scale: number;
 };
 
-function emptyFrameLabels(labelType: LabelType = "bbox"): FrameLabels {
-  return { hasLabels: false, labelType, boxes: [], mask: null };
-}
-
-function emptyMaskMetrics(reason = "No labels available"): MaskMetrics {
-  return {
-    iou: { status: "na", reason },
-    dice: { status: "na", reason },
-  };
+function emptyFrameLabels(): FrameLabels {
+  return { hasLabels: false, boxes: [] };
 }
 
 function formatMetricValue(metric: MetricValue): string {
@@ -125,15 +113,12 @@ function App() {
   const [draftBox, setDraftBox] = useState<DraftBox | null>(null);
   const [activePointerId, setActivePointerId] = useState<number | null>(null);
 
-  const [maskMetrics, setMaskMetrics] = useState<MaskMetrics>(emptyMaskMetrics());
-
   const [error, setError] = useState<string>("");
   const [isSwitchingModel, setIsSwitchingModel] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const viewerRef = useRef<HTMLDivElement | null>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
   const [renderSize, setRenderSize] = useState<Dimensions>({ width: 1, height: 1 });
   const [naturalSize, setNaturalSize] = useState<Dimensions>({ width: 1, height: 1 });
 
@@ -142,15 +127,11 @@ function App() {
     [patients, selectedPatientId],
   );
   const activeModel = useMemo(() => models.find((model) => model.active) ?? null, [models]);
-  const activeModelId = activeModel?.id ?? "";
 
   const thresholdBoxes = useMemo(
     () => (inference?.boxes ?? []).filter((box) => box.confidence >= threshold),
     [inference, threshold],
   );
-
-  const isMaskMode = (activeModel?.outputType ?? "bbox") === "mask" || inference?.outputType === "mask";
-  const supportsBBoxAnnotation = !!selectedPatient && !isMaskMode && selectedPatient.labelType === "bbox";
 
   const stenosisDetected = inference?.stenosisDetected ?? false;
   const maxFrameIndex = selectedPatient ? Math.max(0, selectedPatient.frameCount - 1) : 0;
@@ -218,37 +199,10 @@ function App() {
     [groundTruthBoxes, inference, frameLabels.hasLabels],
   );
 
-  const predictionMaskUrl = useMemo(() => {
-    if (!selectedPatient || inference?.outputType !== "mask") {
-      return "";
-    }
-    if (inference.mask?.url) {
-      return resolveApiUrl(inference.mask.url);
-    }
-    return resolveApiUrl(`/api/patients/${selectedPatient.id}/frames/${frameIndex}/masks/prediction`);
-  }, [selectedPatient, inference, frameIndex]);
-
-  const groundTruthMaskUrl = useMemo(() => {
-    if (!selectedPatient || frameLabels.labelType !== "mask" || !frameLabels.hasLabels) {
-      return "";
-    }
-    if (frameLabels.mask?.url) {
-      return resolveApiUrl(frameLabels.mask.url);
-    }
-    return resolveApiUrl(`/api/patients/${selectedPatient.id}/frames/${frameIndex}/masks/ground_truth`);
-  }, [selectedPatient, frameLabels, frameIndex]);
-
   const frameStateLabel = stenosisDetected ? "Stenosis detected" : "No stenosis detected";
   const inferenceMsLabel = inference ? `${inference.inferenceMs.toFixed(1)} ms` : "-";
-  const sourceLabel = inference ? (inference.cached ? "cache" : "live") : "-";
-
-  const metricsUnavailableReason = useMemo(() => {
-    if (isMaskMode) {
-      return maskMetrics.iou.status === "na" ? maskMetrics.iou.reason : "";
-    }
-    return frameMetrics.iou.status === "na" ? frameMetrics.iou.reason : "";
-  }, [isMaskMode, maskMetrics.iou, frameMetrics.iou]);
-
+  const sourceLabel = inference ? (inference.cached ? "cache" : health?.device === "mock" ? "mock" : "live") : "-";
+  const metricsUnavailableReason = frameMetrics.iou.status === "na" ? frameMetrics.iou.reason : "";
   const shouldShowGroundTruth = isAnnotating || showGroundTruth;
 
   const draftRenderBox = useMemo(() => {
@@ -281,11 +235,10 @@ function App() {
     if (isInteractionLocked || patientId === selectedPatientId) {
       return;
     }
-    const next = patients.find((patient) => patient.id === patientId);
     setSelectedPatientId(patientId);
     setFrameIndex(0);
     setInference(null);
-    setFrameLabels(emptyFrameLabels(next?.labelType ?? "bbox"));
+    setFrameLabels(emptyFrameLabels());
     setEditableBoxes([]);
     setSelectedBoxIndex(null);
     setDraftBox(null);
@@ -301,14 +254,13 @@ function App() {
 
     setIsSwitchingModel(true);
     try {
-      // Keep calls ordered: /api/patients is dataset-scoped by active model.
       const updatedModels = await selectModel(modelId);
       const [updatedPatients, nextHealth] = await Promise.all([getPatients(), getHealth()]);
       setModels(updatedModels);
       setPatients(updatedPatients);
       setHealth(nextHealth);
       setInference(null);
-      setFrameLabels(emptyFrameLabels(updatedPatients[0]?.labelType ?? "bbox"));
+      setFrameLabels(emptyFrameLabels());
       setEditableBoxes([]);
       setSelectedBoxIndex(null);
       setDraftBox(null);
@@ -330,7 +282,7 @@ function App() {
   };
 
   const handleDeleteSelected = () => {
-    if (selectedBoxIndex === null || !supportsBBoxAnnotation) {
+    if (selectedBoxIndex === null || !selectedPatient) {
       return;
     }
     setEditableBoxes((prev) => prev.filter((_, index) => index !== selectedBoxIndex));
@@ -339,9 +291,6 @@ function App() {
   };
 
   const handleDiscard = () => {
-    if (!supportsBBoxAnnotation) {
-      return;
-    }
     setEditableBoxes(frameLabels.boxes);
     setSelectedBoxIndex(null);
     setDraftBox(null);
@@ -350,7 +299,7 @@ function App() {
   };
 
   const handleSave = async () => {
-    if (!selectedPatient || isSaving || !supportsBBoxAnnotation) {
+    if (!selectedPatient || isSaving) {
       return;
     }
 
@@ -359,9 +308,7 @@ function App() {
       const response = await saveLabels(selectedPatient.id, frameIndex, toGroundTruthInput(editableBoxes));
       const nextLabels = {
         hasLabels: response.hasLabels,
-        labelType: response.labelType,
         boxes: response.boxes ?? [],
-        mask: response.mask,
       };
       setFrameLabels(nextLabels);
       setEditableBoxes(nextLabels.boxes);
@@ -394,7 +341,7 @@ function App() {
 
         if (patientsData.length > 0) {
           setSelectedPatientId(patientsData[0].id);
-          setFrameLabels(emptyFrameLabels(patientsData[0].labelType));
+          setFrameLabels(emptyFrameLabels());
         }
       } catch (loadError) {
         if (!canceled) {
@@ -425,7 +372,7 @@ function App() {
               patientId: patient.id,
               frameIndex,
               hasLabels: false,
-              labelType: patient.labelType,
+              labelType: "bbox",
               boxes: [],
               mask: null,
             });
@@ -440,12 +387,10 @@ function App() {
         setInference(nextInference);
         const nextFrameLabels = {
           hasLabels: nextLabels.hasLabels,
-          labelType: nextLabels.labelType,
           boxes: nextLabels.boxes ?? [],
-          mask: nextLabels.mask,
         };
         setFrameLabels(nextFrameLabels);
-        setEditableBoxes(nextLabels.labelType === "bbox" ? nextFrameLabels.boxes : []);
+        setEditableBoxes(nextFrameLabels.boxes);
         setSelectedBoxIndex(null);
         setDraftBox(null);
         setActivePointerId(null);
@@ -469,40 +414,7 @@ function App() {
     return () => {
       canceled = true;
     };
-  }, [activeModelId, frameIndex, maxFrameIndex, selectedPatient]);
-
-  useEffect(() => {
-    let canceled = false;
-
-    async function computeMaskMetricsIfNeeded() {
-      if (!isMaskMode) {
-        setMaskMetrics(emptyMaskMetrics("Mask metrics available only in mask mode"));
-        return;
-      }
-      if (!predictionMaskUrl || !groundTruthMaskUrl || !frameLabels.hasLabels) {
-        setMaskMetrics(emptyMaskMetrics("No labels available"));
-        return;
-      }
-
-      try {
-        const next = await computeMaskMetricsFromUrls(predictionMaskUrl, groundTruthMaskUrl);
-        if (!canceled) {
-          setMaskMetrics(next);
-        }
-      } catch (metricError) {
-        if (!canceled) {
-          const reason = metricError instanceof Error ? metricError.message : "Failed to compute mask metrics";
-          setMaskMetrics(emptyMaskMetrics(reason));
-        }
-      }
-    }
-
-    void computeMaskMetricsIfNeeded();
-
-    return () => {
-      canceled = true;
-    };
-  }, [isMaskMode, predictionMaskUrl, groundTruthMaskUrl, frameLabels.hasLabels]);
+  }, [frameIndex, maxFrameIndex, selectedPatient]);
 
   useEffect(() => {
     if (!selectedPatient || !isPlaying || isInteractionLocked) {
@@ -551,17 +463,6 @@ function App() {
     }
   }, [isInteractionLocked, isPlaying]);
 
-  useEffect(() => {
-    if (supportsBBoxAnnotation) {
-      return;
-    }
-    setIsAnnotating(false);
-    setSelectedBoxIndex(null);
-    setDraftBox(null);
-    setActivePointerId(null);
-    setIsDirty(false);
-  }, [supportsBBoxAnnotation]);
-
   return (
     <div className="app-shell">
       <div className="ambient-gradient" />
@@ -569,14 +470,14 @@ function App() {
 
       <header className="top-header">
         <div className="title-wrap">
-          <p className="eyebrow">AXION RESEARCH DEMO</p>
-          <h1>Coronary Angiography Live Classifier</h1>
+          <p className="eyebrow">CADICA DEMO</p>
+          <h1>Coronary Angiography CADICA Viewer</h1>
         </div>
         <div className="health-chip">
           <span className="chip-label">Device</span>
           <strong>{health?.device ?? "-"}</strong>
           <span className="chip-meta">Cache {health?.cacheEntries ?? 0}/{health?.cacheSize ?? 0}</span>
-          <span className="chip-meta">Dataset {activeModel?.datasetId ?? "-"}</span>
+          <span className="chip-meta">{activeModel?.name ?? "No model active"}</span>
         </div>
       </header>
 
@@ -627,9 +528,7 @@ function App() {
                       <span>{model.inferenceMode}</span>
                     </div>
                     {model.active ? <span className="disabled-note">Active model</span> : null}
-                    {!model.active && model.status !== "ready" ? (
-                      <span className="disabled-note">Unavailable</span>
-                    ) : null}
+                    {!model.active && model.status !== "ready" ? <span className="disabled-note">Unavailable</span> : null}
                     {!model.active && model.status === "ready" ? (
                       <span className="disabled-note">
                         {isSwitchingModel
@@ -646,9 +545,9 @@ function App() {
           </section>
 
           <section className="rail-card patients-card">
-            <h2>Patients</h2>
+            <h2>Sequences</h2>
             <div className="patient-list">
-              {patients.length === 0 ? <p className="empty-text">No compatible data loaded for active model.</p> : null}
+              {patients.length === 0 ? <p className="empty-text">No CADICA sequences loaded.</p> : null}
               {patients.map((patient) => (
                 <button
                   key={patient.id}
@@ -659,7 +558,7 @@ function App() {
                 >
                   <span className="patient-name">{patient.displayName}</span>
                   <span className="patient-meta">{patient.frameCount} frames</span>
-                  <span className="patient-badges">{patient.datasetId} · {patient.labelType}</span>
+                  <span className="patient-badges">{patient.datasetId} · labeled {patient.hasLabels ? "yes" : "no"}</span>
                 </button>
               ))}
             </div>
@@ -681,35 +580,25 @@ function App() {
                   Source <strong>{sourceLabel}</strong>
                 </span>
                 <span>
-                  Mode <strong>{activeModel?.outputType ?? "-"}</strong>
+                  Threshold <strong>{threshold.toFixed(2)}</strong>
                 </span>
               </div>
               <div className="quality-metrics">
                 <div className="metric-chip">
                   <span className="metric-label">IoU (frame)</span>
-                  <strong>{formatMetricValue(isMaskMode ? maskMetrics.iou : frameMetrics.iou)}</strong>
+                  <strong>{formatMetricValue(frameMetrics.iou)}</strong>
                 </div>
-                {isMaskMode ? (
-                  <div className="metric-chip">
-                    <span className="metric-label">Dice (frame)</span>
-                    <strong>{formatMetricValue(maskMetrics.dice)}</strong>
-                  </div>
-                ) : null}
               </div>
               {metricsUnavailableReason ? <span className="metrics-note">{metricsUnavailableReason}</span> : null}
               {isDirty ? <span className="metrics-note dirty-note">Unsaved annotation changes</span> : null}
-              {!supportsBBoxAnnotation ? (
-                <span className="metrics-note readonly-note">Mask labels are read-only for this model/dataset.</span>
-              ) : null}
             </div>
           </div>
 
           <div className="viewer-stage" ref={viewerRef}>
             {selectedPatient ? (
               <img
-                ref={imageRef}
                 src={frameImageUrl}
-                alt={`Patient ${selectedPatient.displayName} frame ${frameIndex + 1}`}
+                alt={`CADICA sequence ${selectedPatient.displayName} frame ${frameIndex + 1}`}
                 onLoad={(event) => {
                   const image = event.currentTarget;
                   setNaturalSize((prev) => {
@@ -723,20 +612,13 @@ function App() {
                 }}
               />
             ) : (
-              <div className="empty-stage">Load patient data to start the demo.</div>
+              <div className="empty-stage">Load CADICA sequence data to start the demo.</div>
             )}
 
-            {isMaskMode && predictionMaskUrl ? (
-              <img className="mask-overlay prediction-mask" src={predictionMaskUrl} alt="Prediction mask" />
-            ) : null}
-            {isMaskMode && shouldShowGroundTruth && groundTruthMaskUrl ? (
-              <img className="mask-overlay ground-truth-mask" src={groundTruthMaskUrl} alt="Ground-truth mask" />
-            ) : null}
-
             <div
-              className={`overlay-layer ${isAnnotating && supportsBBoxAnnotation ? "annotation-enabled" : ""}`}
+              className={`overlay-layer ${isAnnotating ? "annotation-enabled" : ""}`}
               onPointerDown={(event) => {
-                if (!isAnnotating || !supportsBBoxAnnotation || isSaving || !selectedPatient || event.button !== 0) {
+                if (!isAnnotating || isSaving || !selectedPatient || event.button !== 0) {
                   return;
                 }
                 const point = toNaturalPoint(event.clientX, event.clientY, false);
@@ -754,7 +636,7 @@ function App() {
                 });
               }}
               onPointerMove={(event) => {
-                if (activePointerId !== event.pointerId || !draftBox || !supportsBBoxAnnotation) {
+                if (activePointerId !== event.pointerId || !draftBox) {
                   return;
                 }
                 const point = toNaturalPoint(event.clientX, event.clientY, true);
@@ -773,7 +655,7 @@ function App() {
                 });
               }}
               onPointerUp={(event) => {
-                if (activePointerId !== event.pointerId || !draftBox || !supportsBBoxAnnotation) {
+                if (activePointerId !== event.pointerId || !draftBox) {
                   return;
                 }
                 const point = toNaturalPoint(event.clientX, event.clientY, true);
@@ -810,23 +692,21 @@ function App() {
                 setActivePointerId(null);
               }}
             >
-              {inference?.outputType === "bbox"
-                ? thresholdBoxes.map((box, index) => (
-                    <div
-                      key={`pred-${index}-${box.x1}-${box.y1}`}
-                      className="bbox prediction"
-                      style={{
-                        left: `${displayRect.offsetX + box.x1 * displayRect.scale}px`,
-                        top: `${displayRect.offsetY + box.y1 * displayRect.scale}px`,
-                        width: `${(box.x2 - box.x1) * displayRect.scale}px`,
-                        height: `${(box.y2 - box.y1) * displayRect.scale}px`,
-                      }}
-                    >
-                      <span>{Math.round(box.confidence * 100)}%</span>
-                    </div>
-                  ))
-                : null}
-              {shouldShowGroundTruth && frameLabels.labelType === "bbox"
+              {thresholdBoxes.map((box, index) => (
+                <div
+                  key={`pred-${index}-${box.x1}-${box.y1}`}
+                  className="bbox prediction"
+                  style={{
+                    left: `${displayRect.offsetX + box.x1 * displayRect.scale}px`,
+                    top: `${displayRect.offsetY + box.y1 * displayRect.scale}px`,
+                    width: `${(box.x2 - box.x1) * displayRect.scale}px`,
+                    height: `${(box.y2 - box.y1) * displayRect.scale}px`,
+                  }}
+                >
+                  <span>{Math.round(box.confidence * 100)}%</span>
+                </div>
+              ))}
+              {shouldShowGroundTruth
                 ? groundTruthBoxes.map((box, index) => (
                     <div
                       key={`gt-${index}-${box.x1}-${box.y1}`}
@@ -838,7 +718,7 @@ function App() {
                         height: `${(box.y2 - box.y1) * displayRect.scale}px`,
                       }}
                       onPointerDown={(event) => {
-                        if (!isAnnotating || !supportsBBoxAnnotation) {
+                        if (!isAnnotating) {
                           return;
                         }
                         event.stopPropagation();
@@ -849,7 +729,7 @@ function App() {
                     </div>
                   ))
                 : null}
-              {isAnnotating && supportsBBoxAnnotation && draftRenderBox ? (
+              {isAnnotating && draftRenderBox ? (
                 <div
                   className="bbox draft-box"
                   style={{
@@ -865,17 +745,16 @@ function App() {
             </div>
           </div>
 
-          <div className="mask-legend">
-            {isMaskMode ? (
-              <>
-                <span className="legend-item prediction">Prediction mask</span>
-                <span className="legend-item ground-truth">Ground-truth mask</span>
-              </>
-            ) : null}
-          </div>
-
           <div className="control-deck">
             <div className="annotation-controls">
+              <button
+                type="button"
+                className={showGroundTruth ? "selected" : ""}
+                onClick={() => setShowGroundTruth((prev) => !prev)}
+                disabled={!selectedPatient || isSaving}
+              >
+                {showGroundTruth ? "Hide ground truth" : "Show ground truth"}
+              </button>
               <button
                 type="button"
                 className={isAnnotating ? "selected" : ""}
@@ -890,25 +769,17 @@ function App() {
                     setActivePointerId(null);
                   }
                 }}
-                disabled={!selectedPatient || isSaving || !supportsBBoxAnnotation}
+                disabled={!selectedPatient || isSaving}
               >
                 {isAnnotating ? "Exit annotation" : "Annotate frame"}
               </button>
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                disabled={!isAnnotating || selectedBoxIndex === null || isSaving || !supportsBBoxAnnotation}
-              >
+              <button type="button" onClick={handleDeleteSelected} disabled={!isAnnotating || selectedBoxIndex === null || isSaving}>
                 Delete selected
               </button>
-              <button type="button" onClick={handleDiscard} disabled={!isDirty || isSaving || !supportsBBoxAnnotation}>
+              <button type="button" onClick={handleDiscard} disabled={!isDirty || isSaving}>
                 Discard edits
               </button>
-              <button
-                type="button"
-                onClick={() => void handleSave()}
-                disabled={!isDirty || isSaving || !selectedPatient || !supportsBBoxAnnotation}
-              >
+              <button type="button" onClick={() => void handleSave()} disabled={!isDirty || isSaving || !selectedPatient}>
                 {isSaving ? "Saving..." : "Save frame labels"}
               </button>
             </div>
@@ -939,50 +810,36 @@ function App() {
               max={maxFrameIndex}
               value={frameIndex}
               onChange={(event) => setFrameIndex(Number(event.target.value))}
-              className="timeline-slider"
               disabled={isInteractionLocked || !selectedPatient}
             />
 
-            <div className="knob-row">
+            <div className="slider-row">
               <label>
-                Threshold
+                Confidence threshold
                 <input
                   type="range"
-                  min={0.1}
-                  max={0.9}
-                  step={0.01}
+                  min={0.05}
+                  max={0.95}
+                  step={0.05}
                   value={threshold}
                   onChange={(event) => setThreshold(Number(event.target.value))}
                 />
-                <span>{threshold.toFixed(2)}</span>
               </label>
+              <span>{threshold.toFixed(2)}</span>
+            </div>
 
-              <div className="speed-group">
-                {SPEED_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={speed === option ? "selected" : ""}
-                    onClick={() => setSpeed(option)}
-                  >
-                    {option}x
-                  </button>
-                ))}
-              </div>
-
-              <label className="toggle-label">
-                <input
-                  type="checkbox"
-                  checked={showGroundTruth}
-                  onChange={(event) => setShowGroundTruth(event.target.checked)}
-                  disabled={
-                    isMaskMode
-                      ? !frameLabels.hasLabels
-                      : !selectedPatient?.hasLabels && !isAnnotating && !isDirty
-                  }
-                />
-                Ground-truth overlay
-              </label>
+            <div className="speed-row">
+              {SPEED_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={speed === option ? "selected" : ""}
+                  onClick={() => setSpeed(option)}
+                  disabled={!selectedPatient}
+                >
+                  {option}x
+                </button>
+              ))}
             </div>
           </div>
         </section>

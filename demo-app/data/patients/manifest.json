@@ -1,171 +1,355 @@
 {
   "patients": [
     {
-      "id": "dataset_14_002_5",
-      "displayName": "Dataset 14 002 5",
-      "framesDir": "dataset_14_002_5/frames",
+      "id": "cadica_p18_v10",
+      "displayName": "CADICA P18 V10",
+      "framesDir": "cadica_p18_v10/frames",
+      "labelsDir": "cadica_p18_v10/labels",
       "defaultFps": 12,
-      "labelsDir": "dataset_14_002_5/labels"
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dataset_14_002_8",
-      "displayName": "Dataset 14 002 8",
-      "framesDir": "dataset_14_002_8/frames",
+      "id": "cadica_p18_v12",
+      "displayName": "CADICA P18 V12",
+      "framesDir": "cadica_p18_v12/frames",
+      "labelsDir": "cadica_p18_v12/labels",
       "defaultFps": 12,
-      "labelsDir": "dataset_14_002_8/labels"
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dataset_14_003_1",
-      "displayName": "Dataset 14 003 1",
-      "framesDir": "dataset_14_003_1/frames",
+      "id": "cadica_p18_v13",
+      "displayName": "CADICA P18 V13",
+      "framesDir": "cadica_p18_v13/frames",
+      "labelsDir": "cadica_p18_v13/labels",
       "defaultFps": 12,
-      "labelsDir": "dataset_14_003_1/labels"
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dataset_14_006_1",
-      "displayName": "Dataset 14 006 1",
-      "framesDir": "dataset_14_006_1/frames",
+      "id": "cadica_p18_v15",
+      "displayName": "CADICA P18 V15",
+      "framesDir": "cadica_p18_v15/frames",
+      "labelsDir": "cadica_p18_v15/labels",
       "defaultFps": 12,
-      "labelsDir": "dataset_14_006_1/labels"
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dataset_14_007_10",
-      "displayName": "Dataset 14 007 10",
-      "framesDir": "dataset_14_007_10/frames",
+      "id": "cadica_p18_v2",
+      "displayName": "CADICA P18 V2",
+      "framesDir": "cadica_p18_v2/frames",
+      "labelsDir": "cadica_p18_v2/labels",
       "defaultFps": 12,
-      "labelsDir": "dataset_14_007_10/labels"
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0007_0084_0001",
-      "displayName": "DICOM IM 0007 0084 0001",
-      "framesDir": "dicom_im_0007_0084_0001/frames",
-      "defaultFps": 12
+      "id": "cadica_p18_v3",
+      "displayName": "CADICA P18 V3",
+      "framesDir": "cadica_p18_v3/frames",
+      "labelsDir": "cadica_p18_v3/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0001_0048_0001",
-      "displayName": "DICOM IM 0001 0048 0001",
-      "framesDir": "dicom_im_0001_0048_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p18_v4",
+      "displayName": "CADICA P18 V4",
+      "framesDir": "cadica_p18_v4/frames",
+      "labelsDir": "cadica_p18_v4/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0002_0070_0001",
-      "displayName": "DICOM IM 0002 0070 0001",
-      "framesDir": "dicom_im_0002_0070_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p18_v5",
+      "displayName": "CADICA P18 V5",
+      "framesDir": "cadica_p18_v5/frames",
+      "labelsDir": "cadica_p18_v5/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0003_0063_0001",
-      "displayName": "DICOM IM 0003 0063 0001",
-      "framesDir": "dicom_im_0003_0063_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p18_v6",
+      "displayName": "CADICA P18 V6",
+      "framesDir": "cadica_p18_v6/frames",
+      "labelsDir": "cadica_p18_v6/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0004_0058_0001",
-      "displayName": "DICOM IM 0004 0058 0001",
-      "framesDir": "dicom_im_0004_0058_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p18_v7",
+      "displayName": "CADICA P18 V7",
+      "framesDir": "cadica_p18_v7/frames",
+      "labelsDir": "cadica_p18_v7/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0005_0076_0001",
-      "displayName": "DICOM IM 0005 0076 0001",
-      "framesDir": "dicom_im_0005_0076_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p18_v8",
+      "displayName": "CADICA P18 V8",
+      "framesDir": "cadica_p18_v8/frames",
+      "labelsDir": "cadica_p18_v8/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0006_0061_0001",
-      "displayName": "DICOM IM 0006 0061 0001",
-      "framesDir": "dicom_im_0006_0061_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p18_v9",
+      "displayName": "CADICA P18 V9",
+      "framesDir": "cadica_p18_v9/frames",
+      "labelsDir": "cadica_p18_v9/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0008_0015_0001",
-      "displayName": "DICOM IM 0008 0015 0001",
-      "framesDir": "dicom_im_0008_0015_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p2_v1",
+      "displayName": "CADICA P2 V1",
+      "framesDir": "cadica_p2_v1/frames",
+      "labelsDir": "cadica_p2_v1/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0009_0048_0001",
-      "displayName": "DICOM IM 0009 0048 0001",
-      "framesDir": "dicom_im_0009_0048_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p2_v10",
+      "displayName": "CADICA P2 V10",
+      "framesDir": "cadica_p2_v10/frames",
+      "labelsDir": "cadica_p2_v10/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0010_0014_0001",
-      "displayName": "DICOM IM 0010 0014 0001",
-      "framesDir": "dicom_im_0010_0014_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p2_v11",
+      "displayName": "CADICA P2 V11",
+      "framesDir": "cadica_p2_v11/frames",
+      "labelsDir": "cadica_p2_v11/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0011_0097_0001",
-      "displayName": "DICOM IM 0011 0097 0001",
-      "framesDir": "dicom_im_0011_0097_0001/frames",
-      "defaultFps": 15
+      "id": "cadica_p2_v12",
+      "displayName": "CADICA P2 V12",
+      "framesDir": "cadica_p2_v12/frames",
+      "labelsDir": "cadica_p2_v12/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "dicom_im_0012_0001_0001",
-      "displayName": "DICOM IM 0012 0001 0001",
-      "framesDir": "dicom_im_0012_0001_0001/frames",
-      "defaultFps": 12
+      "id": "cadica_p2_v13",
+      "displayName": "CADICA P2 V13",
+      "framesDir": "cadica_p2_v13/frames",
+      "labelsDir": "cadica_p2_v13/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "arcade_dataset_14_002_5",
-      "displayName": "ARCADE Dataset 14 002 5",
-      "datasetId": "arcade",
-      "labelType": "mask",
-      "framesDir": "dataset_14_002_5/frames",
-      "labelMasksDir": "dataset_14_002_5/label_masks",
-      "predictionMasks": {
-        "sam_vmnet_arcade": "dataset_14_002_5/predictions/sam_vmnet_arcade"
-      },
-      "defaultFps": 12
+      "id": "cadica_p2_v2",
+      "displayName": "CADICA P2 V2",
+      "framesDir": "cadica_p2_v2/frames",
+      "labelsDir": "cadica_p2_v2/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "arcade_dataset_14_002_8",
-      "displayName": "ARCADE Dataset 14 002 8",
-      "datasetId": "arcade",
-      "labelType": "mask",
-      "framesDir": "dataset_14_002_8/frames",
-      "labelMasksDir": "dataset_14_002_8/label_masks",
-      "predictionMasks": {
-        "sam_vmnet_arcade": "dataset_14_002_8/predictions/sam_vmnet_arcade"
-      },
-      "defaultFps": 12
+      "id": "cadica_p2_v3",
+      "displayName": "CADICA P2 V3",
+      "framesDir": "cadica_p2_v3/frames",
+      "labelsDir": "cadica_p2_v3/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "arcade_dataset_14_003_1",
-      "displayName": "ARCADE Dataset 14 003 1",
-      "datasetId": "arcade",
-      "labelType": "mask",
-      "framesDir": "dataset_14_003_1/frames",
-      "labelMasksDir": "dataset_14_003_1/label_masks",
-      "predictionMasks": {
-        "sam_vmnet_arcade": "dataset_14_003_1/predictions/sam_vmnet_arcade"
-      },
-      "defaultFps": 12
+      "id": "cadica_p2_v9",
+      "displayName": "CADICA P2 V9",
+      "framesDir": "cadica_p2_v9/frames",
+      "labelsDir": "cadica_p2_v9/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "arcade_dataset_14_006_1",
-      "displayName": "ARCADE Dataset 14 006 1",
-      "datasetId": "arcade",
-      "labelType": "mask",
-      "framesDir": "dataset_14_006_1/frames",
-      "labelMasksDir": "dataset_14_006_1/label_masks",
-      "predictionMasks": {
-        "sam_vmnet_arcade": "dataset_14_006_1/predictions/sam_vmnet_arcade"
-      },
-      "defaultFps": 12
+      "id": "cadica_p41_v10",
+      "displayName": "CADICA P41 V10",
+      "framesDir": "cadica_p41_v10/frames",
+      "labelsDir": "cadica_p41_v10/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     },
     {
-      "id": "arcade_dataset_14_007_10",
-      "displayName": "ARCADE Dataset 14 007 10",
-      "datasetId": "arcade",
-      "labelType": "mask",
-      "framesDir": "dataset_14_007_10/frames",
-      "labelMasksDir": "dataset_14_007_10/label_masks",
-      "predictionMasks": {
-        "sam_vmnet_arcade": "dataset_14_007_10/predictions/sam_vmnet_arcade"
-      },
-      "defaultFps": 12
+      "id": "cadica_p41_v13",
+      "displayName": "CADICA P41 V13",
+      "framesDir": "cadica_p41_v13/frames",
+      "labelsDir": "cadica_p41_v13/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v18",
+      "displayName": "CADICA P41 V18",
+      "framesDir": "cadica_p41_v18/frames",
+      "labelsDir": "cadica_p41_v18/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v2",
+      "displayName": "CADICA P41 V2",
+      "framesDir": "cadica_p41_v2/frames",
+      "labelsDir": "cadica_p41_v2/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v20",
+      "displayName": "CADICA P41 V20",
+      "framesDir": "cadica_p41_v20/frames",
+      "labelsDir": "cadica_p41_v20/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v21",
+      "displayName": "CADICA P41 V21",
+      "framesDir": "cadica_p41_v21/frames",
+      "labelsDir": "cadica_p41_v21/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v23",
+      "displayName": "CADICA P41 V23",
+      "framesDir": "cadica_p41_v23/frames",
+      "labelsDir": "cadica_p41_v23/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v24",
+      "displayName": "CADICA P41 V24",
+      "framesDir": "cadica_p41_v24/frames",
+      "labelsDir": "cadica_p41_v24/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v3",
+      "displayName": "CADICA P41 V3",
+      "framesDir": "cadica_p41_v3/frames",
+      "labelsDir": "cadica_p41_v3/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v4",
+      "displayName": "CADICA P41 V4",
+      "framesDir": "cadica_p41_v4/frames",
+      "labelsDir": "cadica_p41_v4/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v5",
+      "displayName": "CADICA P41 V5",
+      "framesDir": "cadica_p41_v5/frames",
+      "labelsDir": "cadica_p41_v5/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v6",
+      "displayName": "CADICA P41 V6",
+      "framesDir": "cadica_p41_v6/frames",
+      "labelsDir": "cadica_p41_v6/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v7",
+      "displayName": "CADICA P41 V7",
+      "framesDir": "cadica_p41_v7/frames",
+      "labelsDir": "cadica_p41_v7/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v8",
+      "displayName": "CADICA P41 V8",
+      "framesDir": "cadica_p41_v8/frames",
+      "labelsDir": "cadica_p41_v8/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p41_v9",
+      "displayName": "CADICA P41 V9",
+      "framesDir": "cadica_p41_v9/frames",
+      "labelsDir": "cadica_p41_v9/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p8_v11",
+      "displayName": "CADICA P8 V11",
+      "framesDir": "cadica_p8_v11/frames",
+      "labelsDir": "cadica_p8_v11/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p8_v12",
+      "displayName": "CADICA P8 V12",
+      "framesDir": "cadica_p8_v12/frames",
+      "labelsDir": "cadica_p8_v12/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p8_v13",
+      "displayName": "CADICA P8 V13",
+      "framesDir": "cadica_p8_v13/frames",
+      "labelsDir": "cadica_p8_v13/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
+    },
+    {
+      "id": "cadica_p8_v6",
+      "displayName": "CADICA P8 V6",
+      "framesDir": "cadica_p8_v6/frames",
+      "labelsDir": "cadica_p8_v6/labels",
+      "defaultFps": 12,
+      "datasetId": "cadica",
+      "labelType": "bbox"
     }
   ]
 }

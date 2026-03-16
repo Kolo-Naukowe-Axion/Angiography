@@ -1,10 +1,10 @@
-export type DatasetId = "mendeley" | "arcade";
-export type LabelType = "bbox" | "mask";
-export type OutputType = "bbox" | "mask";
-export type InferenceMode = "live" | "precomputed" | "mock";
+export type DatasetId = "cadica";
+export type LabelType = "bbox";
+export type OutputType = "bbox";
+export type InferenceMode = "live" | "mock";
 
 export type ModelCard = {
-  id: "yolo26s" | "yolo26n" | "sam_vmnet_arcade";
+  id: "yolo26m_cadica" | "yolo26x_cadica";
   name: string;
   active: boolean;
   status: "ready" | "unavailable";
@@ -34,19 +34,12 @@ export type Box = {
   className: "stenosis";
 };
 
-export type MaskPayload = {
-  url: string;
-  width: number;
-  height: number;
-  positivePixelRatio: number;
-};
-
 export type InferFrameResponse = {
   patientId: string;
   frameIndex: number;
   outputType: OutputType;
   boxes: Box[];
-  mask: MaskPayload | null;
+  mask: null;
   stenosisDetected: boolean;
   cached: boolean;
   inferenceMs: number;
@@ -69,7 +62,7 @@ export type LabelsResponse = {
   hasLabels: boolean;
   labelType: LabelType;
   boxes: Box[];
-  mask: MaskPayload | null;
+  mask: null;
 };
 
 export type GroundTruthBoxInput = {
