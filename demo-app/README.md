@@ -2,6 +2,8 @@
 
 FastAPI + React demo for visualizing model outputs on curated angiography patient frame sequences.
 
+> Archive note: this branch preserves the legacy Mendeley/ARCADE demo for reference only. Both source setups had data leakage, so this branch is not a supported evaluation baseline.
+
 Supported model/dataset modes:
 
 - `YOLO26s` / `YOLO26n` on Mendeley-style bbox-labeled sequences.

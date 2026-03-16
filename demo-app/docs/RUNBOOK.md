@@ -1,5 +1,7 @@
 # Angiography Demo App Runbook (macOS)
 
+> Archive note: this runbook belongs to the legacy Mendeley/ARCADE demo branch kept for reference only. The underlying training/evaluation setup had data leakage and is not the supported demo path.
+
 ## 1. Start the Demo
 
 From `Angiography/`:
