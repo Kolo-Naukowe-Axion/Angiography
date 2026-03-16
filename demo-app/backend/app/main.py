@@ -6,24 +6,20 @@ from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
 
-import numpy as np
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from PIL import Image
 
 from .classification import has_stenosis
 from .config import Settings
 from .data import ManifestValidationError, PatientRecord, PatientStore
-from .inference import MockInferenceService, PrecomputedMaskInferenceService, YOLOInferenceService
+from .inference import MockInferenceService, YOLOInferenceService
 from .label_utils import parse_yolo_labels_to_boxes, write_yolo_labels_from_boxes
 from .models_registry import (
     MODEL_PATHS,
-    SAM_VMNET_MODEL_ID,
     get_model_cards,
     get_model_dataset_id,
     get_model_id_for_path,
-    get_model_inference_mode,
     get_model_output_type,
     get_model_path,
 )
@@ -33,7 +29,6 @@ from .schemas import (
     InferFrameRequest,
     InferFrameResponse,
     LabelsResponse,
-    MaskPayload,
     ModelSelectRequest,
     PrefetchRequest,
     PrefetchResponse,
@@ -65,32 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except KeyError as error:
             raise HTTPException(status_code=404, detail=f"Unknown patient for active dataset '{dataset_id}': {patient_id}") from error
 
-    def _build_mask_payload(patient_id: str, frame_index: int, source: str, mask_path: Path) -> MaskPayload:
-        with Image.open(mask_path) as image:
-            mask_gray = np.array(image.convert("L"), dtype=np.uint8)
-            width, height = image.size
-
-        positive_ratio = float(np.count_nonzero(mask_gray > 127) / max(1, mask_gray.size))
-        return MaskPayload(
-            url=f"/api/patients/{patient_id}/frames/{frame_index}/masks/{source}",
-            width=width,
-            height=height,
-            positivePixelRatio=round(positive_ratio, 6),
-        )
-
-    async def _create_model_service(model_id: str, model_path: Path, patient_store: PatientStore):
-        output_type = get_model_output_type(model_id)
-        inference_mode = get_model_inference_mode(model_id)
-
-        if output_type == "mask" and inference_mode == "precomputed":
-            return await PrecomputedMaskInferenceService.create(
-                model_id=model_id,
-                model_path=model_path,
-                patient_store=patient_store,
-                cache_size=app_settings.cache_size,
-                prefetch_queue_size=app_settings.prefetch_queue_size,
-            )
-
+    async def _create_model_service(model_path: Path):
         if app_settings.use_mock_model:
             return await MockInferenceService.create(
                 model_path=model_path,
@@ -105,25 +75,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             prefetch_queue_size=app_settings.prefetch_queue_size,
         )
 
-    async def _probe_model(model_id: str, model_path: Path, patient_store: PatientStore) -> tuple[bool, str | None]:
-        output_type = get_model_output_type(model_id)
-        inference_mode = get_model_inference_mode(model_id)
-
-        if output_type == "mask" and inference_mode == "precomputed":
-            is_ready, reason = patient_store.is_model_prediction_ready(
-                model_id=model_id,
-                dataset_id=get_model_dataset_id(model_id),
-            )
-            if not is_ready:
-                return False, reason
-            return True, None
-
+    async def _probe_model(model_path: Path) -> tuple[bool, str | None]:
         if not app_settings.use_mock_model and not model_path.exists():
             return False, f"weights not found at {model_path}"
 
         probe_service = None
         try:
-            probe_service = await _create_model_service(model_id, model_path, patient_store)
+            probe_service = await _create_model_service(model_path)
             await probe_service.start()
             return True, None
         except Exception as error:
@@ -143,8 +101,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise RuntimeError(f"Manifest validation failed: {error}") from error
 
         active_model_id = get_model_id_for_path(app_settings.model_path)
-        model_path = get_model_path(active_model_id) or app_settings.model_path
-        model_service = await _create_model_service(active_model_id, model_path, patient_store)
+        model_path = get_model_path(active_model_id)
+        model_service = await _create_model_service(model_path)
 
         await model_service.start()
         app.state.settings = replace(app_settings, model_path=model_path)
@@ -153,13 +111,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.model_service = model_service
         app.state.active_model_id = active_model_id
 
-        model_availability: dict[str, bool] = {}
-        model_availability_reasons: dict[str, str] = {}
+        model_availability = {}
+        model_availability_reasons = {}
         for model_id, candidate_model_path in MODEL_PATHS.items():
             if model_id == active_model_id:
                 model_availability[model_id] = True
                 continue
-            is_ready, reason = await _probe_model(model_id, candidate_model_path, patient_store)
+            is_ready, reason = await _probe_model(candidate_model_path)
             model_availability[model_id] = is_ready
             if reason:
                 model_availability_reasons[model_id] = reason
@@ -168,7 +126,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         await app.state.model_service.stop()
 
-    app = FastAPI(title="Angiography Demo API", version="1.0.0", lifespan=lifespan)
+    app = FastAPI(title="Angiography Demo API", version="2.0.0", lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
@@ -195,8 +153,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/models/select")
     async def select_model(payload: ModelSelectRequest):
         model_path = get_model_path(payload.modelId)
-        if model_path is None:
-            raise HTTPException(status_code=400, detail=f"Unsupported model id: {payload.modelId}")
 
         async with app.state.model_switch_lock:
             current_model_id = app.state.active_model_id
@@ -209,7 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             previous_service = app.state.model_service
             try:
-                next_service = await _create_model_service(payload.modelId, model_path, app.state.patient_store)
+                next_service = await _create_model_service(model_path)
                 await next_service.start()
             except Exception as error:
                 app.state.model_availability[payload.modelId] = False
@@ -244,26 +200,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/patients/{patient_id}/frames/{frame_index}/masks/{source}")
     async def frame_mask(patient_id: str, frame_index: int, source: str):
-        _get_patient_for_active_dataset(patient_id)
-        if source not in {"prediction", "ground_truth"}:
-            raise HTTPException(status_code=400, detail=f"Unsupported mask source: {source}")
-
-        model_id = app.state.active_model_id if source == "prediction" else None
-        try:
-            mask_path = app.state.patient_store.get_mask_path(
-                patient_id,
-                frame_index,
-                source=source,
-                model_id=model_id,
-                dataset_id=_active_dataset_id(),
-            )
-        except IndexError as error:
-            raise HTTPException(status_code=404, detail=f"Frame index out of range: {frame_index}") from error
-
-        if mask_path is None or not mask_path.exists():
-            raise HTTPException(status_code=404, detail=f"Mask not found for source '{source}'.")
-
-        return FileResponse(mask_path)
+        raise HTTPException(status_code=404, detail="Mask assets are unavailable in the CADICA bbox demo.")
 
     @app.post("/api/infer/frame", response_model=InferFrameResponse)
     async def infer_frame(payload: InferFrameRequest) -> InferFrameResponse:
@@ -277,10 +214,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except IndexError as error:
             raise HTTPException(status_code=404, detail=f"Frame index out of range: {payload.frameIndex}") from error
 
-        try:
-            return await app.state.model_service.infer_frame(payload.patientId, payload.frameIndex, frame_path)
-        except FileNotFoundError as error:
-            raise HTTPException(status_code=404, detail=str(error)) from error
+        return await app.state.model_service.infer_frame(payload.patientId, payload.frameIndex, frame_path)
 
     @app.post("/api/infer/prefetch", response_model=PrefetchResponse)
     async def prefetch(payload: PrefetchRequest) -> PrefetchResponse:
@@ -305,39 +239,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/api/labels/{patient_id}/{frame_index}", response_model=LabelsResponse)
     async def labels(patient_id: str, frame_index: int) -> LabelsResponse:
-        patient = _get_patient_for_active_dataset(patient_id)
+        _get_patient_for_active_dataset(patient_id)
 
         try:
             frame_path = app.state.patient_store.get_frame_path(patient_id, frame_index, dataset_id=_active_dataset_id())
         except IndexError as error:
             raise HTTPException(status_code=404, detail=f"Frame index out of range: {frame_index}") from error
-
-        if patient.label_type == "mask":
-            mask_path = app.state.patient_store.get_mask_path(
-                patient_id,
-                frame_index,
-                source="ground_truth",
-                dataset_id=_active_dataset_id(),
-            )
-            if mask_path is None or not mask_path.exists():
-                return LabelsResponse(
-                    patientId=patient_id,
-                    frameIndex=frame_index,
-                    hasLabels=False,
-                    labelType="mask",
-                    boxes=[],
-                    mask=None,
-                )
-
-            payload = _build_mask_payload(patient_id, frame_index, "ground_truth", mask_path)
-            return LabelsResponse(
-                patientId=patient_id,
-                frameIndex=frame_index,
-                hasLabels=True,
-                labelType="mask",
-                boxes=[],
-                mask=payload,
-            )
 
         label_path = app.state.patient_store.get_label_path(patient_id, frame_index, dataset_id=_active_dataset_id())
         if label_path is None:
@@ -349,13 +256,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.put("/api/labels/{patient_id}/{frame_index}", response_model=LabelsResponse)
     async def save_labels(patient_id: str, frame_index: int, payload: SaveLabelsRequest) -> LabelsResponse:
         _validate_ground_truth_boxes(payload.boxes)
-
-        patient = _get_patient_for_active_dataset(patient_id)
-        if patient.label_type != "bbox":
-            raise HTTPException(
-                status_code=409,
-                detail="Mask-labeled frames are read-only in this demo; bbox label editing is not supported for this dataset.",
-            )
+        _get_patient_for_active_dataset(patient_id)
 
         try:
             frame_path = app.state.patient_store.get_frame_path(patient_id, frame_index, dataset_id=_active_dataset_id())
@@ -381,19 +282,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=f"Frame index out of range: {frame_index}") from error
 
         inference = await app.state.model_service.infer_frame(patient_id, frame_index, frame_path)
-        if inference.outputType == "bbox":
-            detected = has_stenosis(inference.boxes, threshold)
-        else:
-            detected = bool(inference.mask and inference.mask.positivePixelRatio > 0)
+        detected = has_stenosis(inference.boxes, threshold)
 
         return {
             "patientId": patient_id,
             "frameIndex": frame_index,
             "threshold": threshold,
-            "outputType": inference.outputType,
+            "outputType": get_model_output_type(app.state.active_model_id),
             "stenosisDetected": detected,
             "boxCount": len(inference.boxes),
-            "maskPositivePixelRatio": inference.mask.positivePixelRatio if inference.mask else None,
+            "maskPositivePixelRatio": None,
         }
 
     return app

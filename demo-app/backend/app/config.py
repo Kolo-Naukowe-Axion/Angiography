@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-DEFAULT_MODEL_PATH = ROOT_DIR / "models" / "yolo26s" / "weights" / "best.pt"
+DEFAULT_MODEL_PATH = ROOT_DIR / "models" / "yolo26m_cadica" / "runs" / "cadica_selected_seed42" / "weights" / "best.pt"
 
 
 @dataclass(frozen=True)

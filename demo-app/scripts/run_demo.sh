@@ -12,10 +12,12 @@ HOST="${DEMO_HOST:-127.0.0.1}"
 BACKEND_PORT="${DEMO_BACKEND_PORT:-8000}"
 FRONTEND_PORT="${DEMO_FRONTEND_PORT:-5173}"
 DATA_DIR="${DEMO_DATA_DIR:-$APP_DIR/data/patients}"
-MODEL_PATH="${DEMO_MODEL_PATH:-$ROOT_DIR/models/yolo26s/weights/best.pt}"
+MODEL_PATH="${DEMO_MODEL_PATH:-$ROOT_DIR/models/yolo26m_cadica/runs/cadica_selected_seed42/weights/best.pt}"
 AUTO_SETUP="${DEMO_AUTO_SETUP:-1}"
 AUTO_USE_MOCK_MODEL="${DEMO_AUTO_USE_MOCK_MODEL:-1}"
-SOURCE_ROOT="${DEMO_SOURCE_ROOT:-}"
+CADICA_ROOT="${DEMO_CADICA_ROOT:-$ROOT_DIR/datasets/cadica/CADICA}"
+CADICA_SPLIT_MANIFEST="${DEMO_CADICA_SPLIT_MANIFEST:-$CADICA_ROOT/splits/patient_level_80_10_10_seed42/manifest.json}"
+CADICA_SPLIT="${DEMO_CADICA_SPLIT:-test}"
 PYTHON_BIN_OVERRIDE="${DEMO_PYTHON_BIN:-}"
 
 STATE_KEY="$(printf '%s' "$ROOT_DIR" | cksum | awk '{print $1}')"
@@ -47,7 +49,9 @@ Environment overrides:
   DEMO_MODEL_PATH
   DEMO_USE_MOCK_MODEL
   DEMO_AUTO_USE_MOCK_MODEL
-  DEMO_SOURCE_ROOT
+  DEMO_CADICA_ROOT
+  DEMO_CADICA_SPLIT_MANIFEST
+  DEMO_CADICA_SPLIT
   DEMO_PYTHON_BIN
   DEMO_AUTO_SETUP
 EOF
@@ -321,12 +325,15 @@ PY
     return
   fi
 
-  if [ "$mode" = "fix" ] && [ -n "$SOURCE_ROOT" ] && [ -d "$SOURCE_ROOT" ]; then
+  if [ "$mode" = "fix" ] && [ -d "$CADICA_ROOT" ] && [ -f "$CADICA_SPLIT_MANIFEST" ]; then
     echo "Patient data invalid: $validation_output"
-    echo "Preparing patient data from DEMO_SOURCE_ROOT=$SOURCE_ROOT ..."
-    "$SELECTED_PYTHON" "$APP_DIR/scripts/prepare_patient_data.py" \
-      --source-root "$SOURCE_ROOT" \
-      --output-root "$DATA_DIR"
+    echo "Preparing CADICA demo data from $CADICA_ROOT (split: $CADICA_SPLIT) ..."
+    "$SELECTED_PYTHON" "$APP_DIR/scripts/prepare_cadica_demo_data.py" \
+      --cadica-root "$CADICA_ROOT" \
+      --split-manifest "$CADICA_SPLIT_MANIFEST" \
+      --output-root "$DATA_DIR" \
+      --split "$CADICA_SPLIT" \
+      --force
 
     if validation_output="$(
       cd "$BACKEND_DIR"
@@ -354,41 +361,7 @@ PY
 
   fail "Patient data invalid: $validation_output
 Fix by running:
-  $SELECTED_PYTHON \"$APP_DIR/scripts/prepare_patient_data.py\" --source-root /ABS/PATH/TO/CURATED_DATA --output-root \"$DATA_DIR\""
-}
-
-validate_sam_precomputed_readiness() {
-  local readiness_output
-
-  if readiness_output="$(
-    cd "$BACKEND_DIR"
-    DEMO_DATA_DIR="$DATA_DIR" "$BACKEND_PYTHON" - <<'PY' 2>&1
-from pathlib import Path
-import os
-
-from app.data import ManifestValidationError, PatientStore
-
-data_dir = Path(os.environ["DEMO_DATA_DIR"]).resolve()
-try:
-    store = PatientStore(data_dir)
-except ManifestValidationError as error:
-    print(f"unable to evaluate (manifest invalid): {error}")
-    raise SystemExit(1)
-
-ready, reason = store.is_model_prediction_ready("sam_vmnet_arcade", "arcade")
-if ready:
-    print("ready")
-else:
-    print(reason or "not ready")
-    raise SystemExit(1)
-PY
-  )"; then
-    echo "SAM-VMNet precomputed masks: ready ($readiness_output)"
-    return
-  fi
-
-  echo "SAM-VMNet precomputed masks: unavailable ($readiness_output)"
-  echo "  Tip: run demo-app/scripts/prepare_arcade_data.py + demo-app/scripts/precompute_sam_vmnet_masks.py"
+  $SELECTED_PYTHON \"$APP_DIR/scripts/prepare_cadica_demo_data.py\" --cadica-root \"$CADICA_ROOT\" --split-manifest \"$CADICA_SPLIT_MANIFEST\" --output-root \"$DATA_DIR\" --split \"$CADICA_SPLIT\" --force"
 }
 
 ensure_prereqs() {
@@ -399,7 +372,6 @@ ensure_prereqs() {
   ensure_frontend_env "$mode"
   validate_model_path
   validate_data_manifest "$mode"
-  validate_sam_precomputed_readiness
 }
 
 bootstrap_demo() {

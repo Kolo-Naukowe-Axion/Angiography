@@ -1,16 +1,15 @@
-# Angiography Demo Frontend
+# Angiography Demo Frontend (CADICA)
 
-React + TypeScript interface for the macOS localhost demo.
+React + TypeScript interface for the CADICA localhost demo.
 
 ## Features
 
-- Patient timeline player with play/pause, frame scrub, step controls, and speed presets.
-- Live YOLO26s overlay rendering per frame.
-- Confidence threshold slider (`0.10` to `0.90`) without forcing re-inference.
-- Optional ground-truth overlay toggle (if labels are available).
-- Per-frame quality metric: `IoU (frame)` computed from inference + labels.
-- IoU metric value is independent of the confidence threshold slider.
-- Model rail includes YOLO26s (default) and selectable YOLO26n.
+- CADICA sequence player with play/pause, frame scrub, step controls, and speed presets
+- live bbox overlays for `YOLO26m (CADICA)` and `YOLO26x (CADICA)`
+- confidence threshold slider without re-running inference
+- optional ground-truth overlay toggle when labels are available
+- per-frame `IoU (frame)` metric from prediction vs ground truth
+- inline bbox annotation editing and save flow
 
 ## Environment
 
