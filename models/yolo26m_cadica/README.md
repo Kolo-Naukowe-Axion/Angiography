@@ -22,9 +22,11 @@ Prepared YOLO dataset lives in:
 
 - `datasets/cadica/derived/yolo26_selected_seed42`
 
-The split manifest used for this experiment is:
+The tracked split preset used for this experiment is:
 
-- `datasets/cadica/CADICA/splits/patient_level_80_10_10_seed42/manifest.json`
+- `models/yolo26m_cadica/manifests/patient_level_80_10_10_seed42.json`
+
+That preset stores the exact seed-42 patient assignment in git. The prep code expands it into the full `selected_videos` manifest at runtime from `CADICA/selectedVideos`, so anyone with the raw dataset can reproduce the split 1:1 without committing `datasets/`.
 
 ## Dataset Adjustments
 
@@ -39,7 +41,7 @@ Why that matters:
 
 So the prep flow does the following:
 
-1. Reads the official patient-level `train` / `val` / `test` split manifest.
+1. Reads the tracked patient-level `train` / `val` / `test` split preset.
 2. For each selected video, reads only the frame IDs listed in `*_selectedFrames.txt`.
 3. Converts CADICA pixel boxes from `x y w h label` into YOLO normalized boxes:
    - `0 x_center y_center width height`
@@ -208,30 +210,37 @@ uv pip install -r models/yolo26m_cadica/requirements-macos.txt
 ### 2. Prepare the CADICA YOLO dataset
 
 ```bash
-python models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
+python3 models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
   --cadica-root datasets/cadica/CADICA \
-  --split-manifest datasets/cadica/CADICA/splits/patient_level_80_10_10_seed42/manifest.json \
+  --split-manifest models/yolo26m_cadica/manifests/patient_level_80_10_10_seed42.json \
   --output-root datasets/cadica/derived/yolo26_selected_seed42
+```
+
+If you want the old dataset-local manifest file too, export it exactly from the tracked preset:
+
+```bash
+python3 models/yolo26m_cadica/scripts/export_cadica_split_manifest.py \
+  --cadica-root datasets/cadica/CADICA
 ```
 
 ### 3. Verify the prepared dataset
 
 ```bash
-python models/yolo26m_cadica/scripts/verify_cadica_selected.py \
+python3 models/yolo26m_cadica/scripts/verify_cadica_selected.py \
   --dataset-root datasets/cadica/derived/yolo26_selected_seed42
 ```
 
 ### 4. Start training
 
 ```bash
-python models/yolo26m_cadica/train.py \
+python3 models/yolo26m_cadica/train.py \
   --data datasets/cadica/derived/yolo26_selected_seed42/data.yaml
 ```
 
 ### 5. Resume the interrupted run
 
 ```bash
-python models/yolo26m_cadica/train.py \
+python3 models/yolo26m_cadica/train.py \
   --resume models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt
 ```
 
@@ -244,7 +253,7 @@ python3 models/yolo26m_cadica/scripts/watch_results.py --follow
 ### 7. Compute mIoU for a checkpoint
 
 ```bash
-python models/yolo26m_cadica/scripts/compute_mean_iou.py \
+python3 models/yolo26m_cadica/scripts/compute_mean_iou.py \
   --weights models/yolo26m_cadica/runs/cadica_selected_seed42/weights/last.pt \
   --data datasets/cadica/derived/yolo26_selected_seed42/data.yaml \
   --split val \
@@ -255,7 +264,7 @@ python models/yolo26m_cadica/scripts/compute_mean_iou.py \
 ### 8. Track mIoU periodically during training
 
 ```bash
-python models/yolo26m_cadica/scripts/periodic_iou_eval.py \
+python3 models/yolo26m_cadica/scripts/periodic_iou_eval.py \
   --run-dir models/yolo26m_cadica/runs/cadica_selected_seed42 \
   --data datasets/cadica/derived/yolo26_selected_seed42/data.yaml \
   --device mps \

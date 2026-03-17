@@ -9,8 +9,10 @@ from models.yolo26m_cadica.scripts.cadica_selected_utils import (
     bbox_xywh_to_yolo,
     build_expected_split_index,
     iter_frame_samples,
+    normalize_split_manifest,
     prepare_dataset,
 )
+from models.yolo26m_cadica.scripts.export_cadica_split_manifest import export_split_manifest
 
 
 PNG_512 = (
@@ -128,6 +130,33 @@ class CadicaSelectedTests(unittest.TestCase):
             self.assertEqual(expected["train"]["selected_videos"], ["p1_v1"])
             self.assertEqual(expected["val"]["selected_videos"], ["p2_v1"])
             self.assertEqual(expected["test"]["selected_videos"], ["p3_v2"])
+
+    def test_patient_only_manifest_derives_selected_videos(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cadica_root, manifest_path = self.make_fake_cadica(Path(tmp_dir))
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for split in payload["splits"].values():
+                split.pop("selected_videos")
+
+            normalized = normalize_split_manifest(payload, cadica_root=cadica_root)
+            self.assertEqual(normalized["splits"]["train"]["selected_videos"], ["p1_v1"])
+            self.assertEqual(normalized["splits"]["val"]["selected_videos"], ["p2_v1"])
+            self.assertEqual(normalized["splits"]["test"]["selected_videos"], ["p3_v2"])
+
+    def test_export_split_manifest_writes_dataset_root_and_selected_videos(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            cadica_root, manifest_path = self.make_fake_cadica(Path(tmp_dir))
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            for split in payload["splits"].values():
+                split.pop("selected_videos")
+            manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+            output_path = Path(tmp_dir) / "exported" / "manifest.json"
+            exported = export_split_manifest(cadica_root, manifest_path, output_path)
+
+            self.assertEqual(exported["dataset_root"], str(cadica_root.resolve()))
+            self.assertEqual(exported["splits"]["train"]["selected_videos"], ["p1_v1"])
+            self.assertTrue(output_path.exists())
 
 
 if __name__ == "__main__":

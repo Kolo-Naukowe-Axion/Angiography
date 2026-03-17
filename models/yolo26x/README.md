@@ -19,18 +19,18 @@ This workflow reuses the existing CADICA selected-keyframe prep script from [`mo
 Symlink mode is the default and is the fastest option for local training on the same machine:
 
 ```bash
-python models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
+python3 models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
   --cadica-root datasets/cadica/CADICA \
-  --split-manifest datasets/cadica/CADICA/splits/patient_level_80_10_10_seed42/manifest.json \
+  --split-manifest models/yolo26m_cadica/manifests/patient_level_80_10_10_seed42.json \
   --output-root datasets/cadica/derived/yolo26_selected_seed42
 ```
 
 If you want a fully portable copy instead of symlinks:
 
 ```bash
-python models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
+python3 models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
   --cadica-root datasets/cadica/CADICA \
-  --split-manifest datasets/cadica/CADICA/splits/patient_level_80_10_10_seed42/manifest.json \
+  --split-manifest models/yolo26m_cadica/manifests/patient_level_80_10_10_seed42.json \
   --output-root datasets/cadica/derived/yolo26_selected_seed42_copy \
   --copy-images
 ```
@@ -38,7 +38,7 @@ python models/yolo26m_cadica/scripts/prepare_cadica_selected.py \
 ## Verify the dataset
 
 ```bash
-python models/yolo26m_cadica/scripts/verify_cadica_selected.py \
+python3 models/yolo26m_cadica/scripts/verify_cadica_selected.py \
   --dataset-root datasets/cadica/derived/yolo26_selected_seed42
 ```
 

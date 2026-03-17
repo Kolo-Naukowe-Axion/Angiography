@@ -1,0 +1,72 @@
+{
+  "dataset_root": "datasets/cadica/CADICA",
+  "strategy": "patient-level deterministic split to avoid leakage",
+  "seed": 42,
+  "ratios_requested": {
+    "train": 0.8,
+    "val": 0.1,
+    "test": 0.1
+  },
+  "patient_counts": {
+    "train": 34,
+    "val": 4,
+    "test": 4
+  },
+  "note": "42 patients cannot be split exactly 80/10/10, so this preset uses 34/4/4 patients (81.0% / 9.5% / 9.5%). selected_videos are derived from CADICA/selectedVideos at runtime.",
+  "splits": {
+    "train": {
+      "patients": [
+        "p1",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p10",
+        "p11",
+        "p12",
+        "p13",
+        "p14",
+        "p17",
+        "p19",
+        "p20",
+        "p21",
+        "p22",
+        "p23",
+        "p24",
+        "p25",
+        "p26",
+        "p27",
+        "p28",
+        "p29",
+        "p30",
+        "p31",
+        "p32",
+        "p33",
+        "p34",
+        "p35",
+        "p36",
+        "p37",
+        "p38",
+        "p39",
+        "p40",
+        "p42"
+      ]
+    },
+    "val": {
+      "patients": [
+        "p7",
+        "p9",
+        "p15",
+        "p16"
+      ]
+    },
+    "test": {
+      "patients": [
+        "p2",
+        "p8",
+        "p18",
+        "p41"
+      ]
+    }
+  }
+}

@@ -44,7 +44,7 @@ Open `http://127.0.0.1:5173`.
 ```bash
 python3 demo-app/scripts/prepare_cadica_demo_data.py \
   --cadica-root datasets/cadica/CADICA \
-  --split-manifest datasets/cadica/CADICA/splits/patient_level_80_10_10_seed42/manifest.json \
+  --split-manifest models/yolo26m_cadica/manifests/patient_level_80_10_10_seed42.json \
   --output-root demo-app/data/patients \
   --split test \
   --force

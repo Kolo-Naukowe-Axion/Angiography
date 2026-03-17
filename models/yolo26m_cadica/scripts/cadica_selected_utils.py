@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import struct
 from dataclasses import dataclass
@@ -12,11 +13,12 @@ from typing import Iterable
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CADICA_ROOT = REPO_ROOT / "datasets" / "cadica" / "CADICA"
 DEFAULT_SPLIT_MANIFEST = (
-    DEFAULT_CADICA_ROOT / "splits" / "patient_level_80_10_10_seed42" / "manifest.json"
+    REPO_ROOT / "models" / "yolo26m_cadica" / "manifests" / "patient_level_80_10_10_seed42.json"
 )
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "datasets" / "cadica" / "derived" / "yolo26_selected_seed42"
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff")
 SPLITS = ("train", "val", "test")
+_NUMERIC_SUFFIX_RE = re.compile(r"^[a-zA-Z_]+(\d+)$")
 
 
 @dataclass(frozen=True)
@@ -38,13 +40,71 @@ class FrameSample:
 
 
 def load_split_manifest(split_manifest: Path) -> dict:
-    payload = json.loads(split_manifest.read_text(encoding="utf-8"))
+    return json.loads(split_manifest.read_text(encoding="utf-8"))
+
+
+def numeric_suffix_sort_key(value: str) -> tuple[int, str]:
+    match = _NUMERIC_SUFFIX_RE.match(value)
+    if match is None:
+        return (0, value)
+    return (int(match.group(1)), value)
+
+
+def derive_selected_videos(cadica_root: Path, patient_ids: Iterable[str]) -> list[str]:
+    selected_root = cadica_root / "selectedVideos"
+    selected_videos: list[str] = []
+
+    for patient_id in patient_ids:
+        patient_dir = selected_root / patient_id
+        if not patient_dir.is_dir():
+            raise FileNotFoundError(f"Missing CADICA patient directory: {patient_dir}")
+
+        patient_video_dirs = sorted(
+            (entry for entry in patient_dir.iterdir() if entry.is_dir()),
+            key=lambda path: numeric_suffix_sort_key(path.name),
+        )
+        patient_selected_videos: list[str] = []
+        for video_dir in patient_video_dirs:
+            selected_frame_files = sorted(video_dir.glob("*_selectedFrames.txt"))
+            if not selected_frame_files:
+                continue
+            if len(selected_frame_files) != 1:
+                raise FileNotFoundError(f"Expected exactly one *_selectedFrames.txt in {video_dir}")
+            patient_selected_videos.append(f"{patient_id}_{video_dir.name}")
+
+        if not patient_selected_videos:
+            raise FileNotFoundError(f"No selected CADICA videos found for patient {patient_id} in {patient_dir}")
+
+        selected_videos.extend(patient_selected_videos)
+
+    return selected_videos
+
+
+def normalize_split_manifest(payload: dict, cadica_root: Path | None = None) -> dict:
+    normalized = dict(payload)
+    normalized["splits"] = {}
+
     for split in SPLITS:
-        if split not in payload.get("splits", {}):
-            raise ValueError(f"Missing split '{split}' in manifest {split_manifest}")
-        if "selected_videos" not in payload["splits"][split]:
-            raise ValueError(f"Split '{split}' is missing selected_videos in {split_manifest}")
-    return payload
+        split_payload = payload.get("splits", {}).get(split)
+        if split_payload is None:
+            raise ValueError(f"Missing split '{split}' in manifest payload")
+
+        patients = split_payload.get("patients")
+        if not patients:
+            raise ValueError(f"Split '{split}' is missing patients in manifest payload")
+
+        normalized_split = dict(split_payload)
+        if "selected_videos" not in normalized_split:
+            if cadica_root is None:
+                raise ValueError(
+                    f"Split '{split}' is missing selected_videos and no cadica_root was provided "
+                    "to derive them from the raw dataset."
+                )
+            normalized_split["selected_videos"] = derive_selected_videos(cadica_root, patients)
+
+        normalized["splits"][split] = normalized_split
+
+    return normalized
 
 
 def load_selected_frame_stems(video_dir: Path) -> list[str]:
@@ -120,7 +180,7 @@ def parse_cadica_groundtruth(label_path: Path, image_path: Path) -> list[str]:
 
 
 def iter_frame_samples(cadica_root: Path, split_manifest: Path) -> Iterable[FrameSample]:
-    manifest = load_split_manifest(split_manifest)
+    manifest = normalize_split_manifest(load_split_manifest(split_manifest), cadica_root=cadica_root)
     selected_root = cadica_root / "selectedVideos"
 
     for split in SPLITS:
@@ -144,7 +204,7 @@ def iter_frame_samples(cadica_root: Path, split_manifest: Path) -> Iterable[Fram
 
 
 def build_expected_split_index(cadica_root: Path, split_manifest: Path) -> dict[str, dict]:
-    manifest = load_split_manifest(split_manifest)
+    manifest = normalize_split_manifest(load_split_manifest(split_manifest), cadica_root=cadica_root)
     result: dict[str, dict] = {}
 
     for split in SPLITS:
