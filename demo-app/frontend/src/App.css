@@ -336,6 +336,7 @@ body {
   padding: 0.85rem;
   display: grid;
   gap: 0.7rem;
+  align-content: start;
 }
 
 .viewer-header-row {
@@ -435,9 +436,14 @@ body {
   border-radius: 0.9rem;
   overflow: hidden;
   border: 1px solid rgba(141, 213, 233, 0.28);
-  height: clamp(240px, 48vh, 620px);
+  width: min(100%, clamp(420px, 66vh, 860px));
+  aspect-ratio: 1 / 1;
+  justify-self: center;
   background: radial-gradient(circle at 50% 50%, #0f2332 0%, #050c14 80%);
   display: grid;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 18px 44px rgba(0, 0, 0, 0.28);
 }
 
 .viewer-stage img,
@@ -446,6 +452,12 @@ body {
   height: 100%;
   object-fit: contain;
   display: block;
+}
+
+.viewer-stage img {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05), transparent 58%),
+    linear-gradient(180deg, rgba(3, 11, 18, 0.94), rgba(6, 16, 26, 0.98));
 }
 
 .empty-stage {
@@ -544,6 +556,8 @@ body {
 }
 
 .control-deck {
+  width: min(100%, clamp(420px, 66vh, 860px));
+  justify-self: center;
   display: grid;
   gap: 0.55rem;
 }
@@ -682,7 +696,7 @@ button:disabled {
   }
 
   .viewer-stage {
-    height: 360px;
+    width: min(100%, 560px);
   }
 }
 
@@ -733,7 +747,7 @@ button:disabled {
   }
 
   .viewer-stage {
-    height: clamp(200px, 42vh, 500px);
+    width: min(100%, clamp(360px, 58vh, 680px));
   }
 
   .classification-banner {
@@ -805,6 +819,6 @@ button:disabled {
   }
 
   .viewer-stage {
-    height: 300px;
+    width: 100%;
   }
 }

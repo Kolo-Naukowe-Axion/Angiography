@@ -1,0 +1,16 @@
+[project]
+name = "angio-yolov8-stenosis"
+version = "0.1.0"
+description = "YOLOv8 stenosis detection workflow."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "opencv-python>=4.8.0",
+  "pandas",
+  "ultralytics>=8.3.0",
+]
+
+[tool.uv]
+package = false

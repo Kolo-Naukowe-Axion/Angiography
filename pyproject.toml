@@ -1,0 +1,20 @@
+[project]
+name = "angiography-workspace"
+version = "0.1.0"
+description = "Repo-level uv workspace for Angiography Python projects."
+readme = "demo-app/README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+  "demo-app/backend",
+  "models/yolov8-stenosis",
+  "models/yolo26x",
+  "models/yolo26m_cadica",
+  "models/sam_vmnet",
+  "output/jupyter-notebook",
+]

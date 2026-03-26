@@ -11,6 +11,7 @@ demo-app/data/patients/*
 demo-app/frontend/node_modules/
 demo-app/frontend/dist/
 
+.venv/
 demo-app/backend/.venv/
 demo-app/backend/.venv*/
 __pycache__/
