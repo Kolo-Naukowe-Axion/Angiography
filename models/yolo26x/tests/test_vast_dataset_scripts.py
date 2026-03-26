@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from models.yolo26x.scripts.rewrite_data_yaml import rewrite_data_yaml
 from models.yolo26x.scripts.verify_prepared_dataset import verify_prepared_dataset

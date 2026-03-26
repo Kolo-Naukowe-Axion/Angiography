@@ -1,0 +1,18 @@
+[project]
+name = "angio-jupyter-notebook"
+version = "0.1.0"
+description = "Notebook environment for Angiography exploratory analysis."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "ipykernel",
+  "ipython",
+  "matplotlib",
+  "numpy",
+  "openpyxl",
+  "pandas",
+  "pillow",
+  "seaborn",
+]
+
+[tool.uv]
+package = false

@@ -1,0 +1,21 @@
+[project]
+name = "angio-yolo26x"
+version = "0.1.0"
+description = "YOLO26x CADICA training workflow."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "pillow",
+  "torch",
+  "torchaudio",
+  "torchvision",
+  "ultralytics>=8.4.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest",
+]
+
+[tool.uv]
+package = false

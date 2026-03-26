@@ -90,7 +90,7 @@ def normalize_split_manifest(payload: dict, cadica_root: Path | None = None) -> 
             raise ValueError(f"Missing split '{split}' in manifest payload")
 
         patients = split_payload.get("patients")
-        if not patients:
+        if patients is None:
             raise ValueError(f"Split '{split}' is missing patients in manifest payload")
 
         normalized_split = dict(split_payload)
